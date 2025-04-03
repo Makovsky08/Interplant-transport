@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block title %}Analýza Dat{% endblock %}
+
+{% block additional_styles %}
+.nav-tabs {
+    margin-bottom: 1rem;
+}
+.tab-content {
+    padding: 1rem;
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 0.25rem 0.25rem;
+}
+.table td {
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.analysis-card {
+    margin-bottom: 20px;
+}
+.analysis-parameters {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+.chart-container {
+    height: 300px;
+    margin-bottom: 20px;
+}
+.assigned-celky-warning {
+    margin-bottom: 20px;
+    display: none;
+}
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.2.9/css/responsive.bootstrap5.min.css">
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>Analýza Dat</h1>
+        <a href="{{ url_for('data_module.index') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Zpět na datový modul
+        </a>
+    </div>
+    
+    <div id="assignedCelkyWarning" class="alert alert-warning assigned-celky-warning alert-dismissible fade show" role="alert">
+        <div class="d-flex">
+            <div class="me-3">
+                <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            </div>
+            <div>
+                <h5 class="alert-heading">Upozornění: Některé celky jsou již přiděleny k shuttlům!</h5>
+                <p>V aktuálním jízdním řádu je <strong id="assignedCelkyCount">0</strong> celků přiřazených k shuttlům. Provedení nové analýzy může změnit data těchto přiřazených celků, což může narušit existující plánování.</p>
+                <hr>
+                <p class="mb-0">Doporučení: <a href="{{ url_for('config_module.schedules') }}" class="alert-link">Vytvořte nový jízdní řád</a> pro novou analýzu dat a zachování stávajících přiřazení.</p>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card analysis-card">
+                <div class="card-header">
+                    <h5>Parametry analýzy</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="analysis-parameters">
+                                <form id="analysisForm" action="{{ url_for('data_module.analyze_data') }}" method="post">
+                                    <div class="mb-3">
+                                        <label for="months_back" class="form-label">Počet měsíců zpět pro analýzu:</label>
+                                        <select class="form-select" id="months_back" name="months_back">
+                                            <option value="1">1 měsíc</option>
+                                            <option value="3">3 měsíce</option>
+                                            <option value="6" selected>6 měsíců</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-play"></i> Spustit analýzu
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6>Co analýza provádí?</h6>
+                                    <p>Analýza zpracovává historická data o přepravě z databáze WATRA a vytváří celky pro plánování jízdních řádů.</p>
+                                    <p>Pro každou kombinaci zdrojového a cílového závodu jsou vypočteny statistiky jako:</p>
+                                    <ul>
+                                        <li>Medián počtu přeprav v jednotlivých hodinách</li>
+                                        <li>90. a 95. percentil počtu přeprav</li>
+                                        <li>Průměrný počet a směrodatná odchylka</li>
+                                    </ul>
+                                    <p>Výsledky jsou uloženy jako celky, které lze přiřazovat ke shuttlům v jízdním řádu.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5>Celky</h5>
+                </div>
+                <div class="card-body">
+                    <div id="celkyTableContainer" class="table-responsive">
+                        {% if celky_data %}
+                            {% include 'data_module/celky_table.html' %}
+                        {% else %}
+                            <div class="alert alert-info">
+                                Zatím nebyly vytvořeny žádné celky. Spusťte analýzu pro vytvoření celků.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/responsive/2.2.9/js/responsive.bootstrap5.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Kontrola přidělených celků při načtení stránky
+    checkAssignedCelky();
+
+    $('#assignedCelkyWarning .btn-close').on('click', function() {
+        $('#assignedCelkyWarning').hide();
+    });
+    
+    // Funkce pro kontrolu přidělených celků
+    function checkAssignedCelky() {
+        $.ajax({
+            url: '{{ url_for("data_module.check_assigned_celky") }}',
+            type: 'GET',
+            data: {
+                'schedule_id': '{{ active_schedule_id }}'
+            },
+            success: function(response) {
+                if (response.assigned_count > 0) {
+                    $('#assignedCelkyCount').text(response.assigned_count);
+                    $('#assignedCelkyWarning').fadeIn();
+                } else {
+                    $('#assignedCelkyWarning').hide();
+                }
+            },
+            error: function() {
+                // Skrýt varování v případě chyby
+                $('#assignedCelkyWarning').hide();
+            }
+        });
+    }
+
+    // Initialize DataTable if table exists
+    if ($('#celky-table').length) {
+        $('#celky-table').DataTable({
+            pageLength: 25,
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/cs.json'
+            },
+            responsive: true
+        });
+    }
+    
+    // Initialize toastr notifications
+    toastr.options = {
+        "closeButton": true,
+        "progressBar": true,
+        "positionClass": "toast-top-right",
+        "timeOut": "3000"
+    };
+    
+    // Handle analysis form submission with AJAX
+    $('#analysisForm').submit(function(e) {
+        e.preventDefault();
+        
+        // Show loading indicator
+        const submitBtn = $(this).find('button[type="submit"]');
+        const originalText = submitBtn.html();
+        submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Zpracovávám...');
+        
+        // Get form data
+        const formData = new FormData(this);
+        
+        // Send AJAX request
+        $.ajax({
+            url: $(this).attr('action'),
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    // Update the table
+                    $('#celkyTableContainer').html(response.celky_html);
+                    
+                    // Initialize DataTable
+                    $('#celky-table').DataTable({
+                        pageLength: 25,
+                        language: {
+                            url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/cs.json'
+                        },
+                        responsive: true
+                    });
+                    
+                    // Zkontrolovat přidělené celky znovu po analýze
+                    checkAssignedCelky();
+                    
+                    // Show success message
+                    toastr.success(`Analýza úspěšně dokončena. Vytvořeno ${response.celky_count} celků.`);
+                    
+                    // Pokud jsou některé celky přiděleny, zobrazit varování
+                    if (response.assigned_count > 0) {
+                        toastr.warning(`Upozornění: ${response.assigned_count} celků je již přiřazeno k shuttlům.`);
+                    }
+                } else {
+                    toastr.error('Chyba při analýze: ' + response.error);
+                }
+            },
+            error: function(xhr, status, error) {
+                toastr.error('Chyba při komunikaci se serverem: ' + error);
+            },
+            complete: function() {
+                // Reset button
+                submitBtn.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

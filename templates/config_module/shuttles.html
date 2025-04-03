@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+
+{% block title %}Správa Shuttlů{% endblock %}
+
+{% block additional_styles %}
+.card-header .btn {
+    margin-left: 10px;
+}
+.table th, .table td {
+    vertical-align: middle;
+}
+.inactive-shuttle {
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+.shuttle-type {
+    text-transform: capitalize;
+}
+.shuttle-active-badge {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+}
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>Správa Shuttlů</h1>
+        <a href="{{ url_for('config_module.index') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Zpět na konfiguraci
+        </a>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Seznam shuttlů</h5>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addShuttleModal">
+                        <i class="bi bi-plus-circle"></i> Přidat shuttle
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table id="shuttles-table" class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Název</th>
+                                    <th>Kapacita</th>
+                                    <th>Typ</th>
+                                    <th>Délka směny</th>
+                                    <th>Přestávka</th>
+                                    <th>Přestávka každých</th>
+                                    <th>Čas výměny směny</th>
+                                    <th>Místo výměny směny</th>
+                                    <th>Délka přepřahu</th>
+                                    <th>Místo přepřahu</th>
+                                    <th>Barva</th>
+                                    <th>Stav</th>
+                                    <th>Akce</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for shuttle in shuttles %}
+                                <tr class="{{ 'inactive-shuttle' if not shuttle.active }}">
+                                    <td>{{ shuttle.id }}</td>
+                                    <td>{{ shuttle.name }}</td>
+                                    <td>{{ shuttle.capacity }} palet</td>
+                                    <td class="shuttle-type">{{ shuttle.shuttle_type }}</td>
+                                    <td>{{ shuttle.shift_length }} hodin</td>
+                                    <td>{{ shuttle.break_time }} minut</td>
+                                    <td>{{ shuttle.break_each // 60 }} hodin</td>
+                                    <td>{{ shuttle.time_for_shift_change }} minut</td>
+                                    <td>
+                                        {% for plant in plants %}
+                                            {% if plant.identifier == shuttle.shift_change_dest %}
+                                                {{ plant.name }}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </td>
+                                    <td>{{ shuttle.preprah_length if shuttle.preprah_length else '0' }} minut</td>
+                                    <td>
+                                        {% if shuttle.preprah_destination %}
+                                            {% for plant in plants %}
+                                                {% if plant.identifier == shuttle.preprah_destination %}
+                                                    {{ plant.name }}
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td><div style="width: 25px; height: 25px; background-color: {{ shuttle.color }}; border: 1px solid #ddd; border-radius: 3px;" title="{{ shuttle.color }}"></div></td>
+                                    <td>
+                                        {% if shuttle.active %}
+                                            <span class="badge bg-success shuttle-active-badge">Aktivní</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary shuttle-active-badge">Neaktivní</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary edit-shuttle" data-shuttle='{{ shuttle|tojson }}'>
+                                            <i class="bi bi-pencil"></i> Upravit
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Shuttle Modal -->
+<div class="modal fade" id="addShuttleModal" tabindex="-1" aria-labelledby="addShuttleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addShuttleModalLabel">Přidat nový shuttle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addShuttleForm" action="{{ url_for('config_module.add_shuttle') }}" method="post">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Název shuttlu</label>
+                                <input type="text" class="form-control" id="name" name="name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="capacity" class="form-label">Kapacita (palety)</label>
+                                <input type="number" class="form-control" id="capacity" name="capacity" min="1" value="40" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="shuttle_type" class="form-label">Typ shuttlu</label>
+                                <select class="form-select" id="shuttle_type" name="shuttle_type" required>
+                                    <option value="naves">Návěs</option>
+                                    <option value="preprah">Přeprah</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="shift_length" class="form-label">Délka směny (hodiny)</label>
+                                <select class="form-select" id="shift_length" name="shift_length" required>
+                                    <option value="8">8 hodin</option>
+                                    <option value="12">12 hodin</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="break_time" class="form-label">Čas přestávky (minuty)</label>
+                                <input type="number" class="form-control" id="break_time" name="break_time" min="0" value="30" required>
+                                <div class="form-text">Celkový čas přestávky v minutách za směnu.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="break_each" class="form-label">Přestávka každých (minuty)</label>
+                                <input type="number" class="form-control" id="break_each" name="break_each" min="60" value="240" required>
+                                <div class="form-text">Maximální doba práce před povinnou přestávkou.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="time_for_shift_change" class="form-label">Čas výměny směny (minuty)</label>
+                                <input type="number" class="form-control" id="time_for_shift_change" name="time_for_shift_change" min="0" value="15" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="shift_change_dest" class="form-label">Místo výměny směny</label>
+                                <select class="form-select" id="shift_change_dest" name="shift_change_dest" required>
+                                    {% for plant in plants %}
+                                    <option value="{{ plant.identifier }}" {{ 'selected' if plant.identifier == 4 }}>{{ plant.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="color" class="form-label">Barva shuttlu</label>
+                                <input type="color" class="form-control form-control-color" id="color" name="color" value="#0d6efd">
+                                <div class="form-text">Vyberte barvu pro zobrazení shuttlu v přehledech.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="preprah_length" class="form-label">Délka přepřahu (minuty)</label>
+                                <input type="number" class="form-control" id="preprah_length" name="preprah_length" min="0" value="0">
+                            </div>
+                            <div class="mb-3">
+                                <label for="preprah_destination" class="form-label">Místo přepřahu</label>
+                                <select class="form-select" id="preprah_destination" name="preprah_destination">
+                                    <option value="">-- Žádné --</option>
+                                    {% for plant in plants %}
+                                    <option value="{{ plant.identifier }}">{{ plant.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="active" name="active" checked>
+                                <label class="form-check-label" for="active">
+                                    Aktivní
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                    <button type="submit" class="btn btn-primary">Uložit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Shuttle Modal -->
+<div class="modal fade" id="editShuttleModal" tabindex="-1" aria-labelledby="editShuttleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editShuttleModalLabel">Upravit shuttle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editShuttleForm" action="" method="post">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_name" class="form-label">Název shuttlu</label>
+                                <input type="text" class="form-control" id="edit_name" name="name" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_capacity" class="form-label">Kapacita (palety)</label>
+                                <input type="number" class="form-control" id="edit_capacity" name="capacity" min="1" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_shuttle_type" class="form-label">Typ shuttlu</label>
+                                <select class="form-select" id="edit_shuttle_type" name="shuttle_type" required>
+                                    <option value="naves">Návěs</option>
+                                    <option value="preprah">Přeprah</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_shift_length" class="form-label">Délka směny (hodiny)</label>
+                                <select class="form-select" id="edit_shift_length" name="shift_length" required>
+                                    <option value="8">8 hodin</option>
+                                    <option value="12">12 hodin</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_break_time" class="form-label">Čas přestávky (minuty)</label>
+                                <input type="number" class="form-control" id="edit_break_time" name="break_time" min="0" required>
+                                <div class="form-text">Celkový čas přestávky v minutách za směnu.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_break_each" class="form-label">Přestávka každých (minuty)</label>
+                                <input type="number" class="form-control" id="edit_break_each" name="break_each" min="60" required>
+                                <div class="form-text">Maximální doba práce před povinnou přestávkou.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_time_for_shift_change" class="form-label">Čas výměny směny (minuty)</label>
+                                <input type="number" class="form-control" id="edit_time_for_shift_change" name="time_for_shift_change" min="0" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_shift_change_dest" class="form-label">Místo výměny směny</label>
+                                <select class="form-select" id="edit_shift_change_dest" name="shift_change_dest" required>
+                                    {% for plant in plants %}
+                                    <option value="{{ plant.identifier }}">{{ plant.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_preprah_length" class="form-label">Délka přepřahu (minuty)</label>
+                                <input type="number" class="form-control" id="edit_preprah_length" name="preprah_length" min="0">
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_preprah_destination" class="form-label">Místo přepřahu</label>
+                                <select class="form-select" id="edit_preprah_destination" name="preprah_destination">
+                                    <option value="">-- Žádné --</option>
+                                    {% for plant in plants %}
+                                    <option value="{{ plant.identifier }}">{{ plant.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="edit_color" class="form-label">Barva shuttlu</label>
+                                <input type="color" class="form-control form-control-color" id="edit_color" name="color" value="#0d6efd">
+                                <div class="form-text">Vyberte barvu pro zobrazení shuttlu v přehledech.</div>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="edit_active" name="active">
+                                <label class="form-check-label" for="edit_active">
+                                    Aktivní
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                    <button type="submit" class="btn btn-primary">Uložit změny</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmDeleteModalLabel">Potvrdit smazání</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Opravdu chcete smazat shuttle <span id="shuttleNameToDelete"></span>?</p>
+                <p class="text-danger">Tato akce je nevratná a může ovlivnit existující jízdní řády.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Smazat</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Initialize DataTable
+        $('#shuttles-table').DataTable({
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/cs.json'
+            }
+        });
+        
+        // Edit shuttle button
+        $('.edit-shuttle').click(function() {
+            const shuttle = $(this).data('shuttle');
+            
+            $('#edit_name').val(shuttle.name);
+            $('#edit_capacity').val(shuttle.capacity);
+            $('#edit_shuttle_type').val(shuttle.shuttle_type);
+            $('#edit_shift_length').val(shuttle.shift_length);
+            $('#edit_break_time').val(shuttle.break_time);
+            $('#edit_break_each').val(shuttle.break_each);
+            $('#edit_time_for_shift_change').val(shuttle.time_for_shift_change);
+            $('#edit_shift_change_dest').val(shuttle.shift_change_dest);
+            $('#edit_preprah_length').val(shuttle.preprah_length || 0);
+            $('#edit_preprah_destination').val(shuttle.preprah_destination || '');
+            $('#edit_active').prop('checked', shuttle.active == 1);
+            $('#edit_color').val(shuttle.color || '#0d6efd');
+            $('#editShuttleForm').attr('action', '{{ url_for("config_module.update_shuttle", id=0) }}'.replace('0', shuttle.id));
+            
+            $('#editShuttleModal').modal('show');
+        });
+        
+        // Update break time based on shift length
+        $('#shift_length').change(function() {
+            const shiftLength = $(this).val();
+            if (shiftLength == 8) {
+                $('#break_time').val(30);
+            } else if (shiftLength == 12) {
+                $('#break_time').val(60);
+            }
+        });
+        
+        $('#edit_shift_length').change(function() {
+            const shiftLength = $(this).val();
+            if (shiftLength == 8) {
+                $('#edit_break_time').val(30);
+            } else if (shiftLength == 12) {
+                $('#edit_break_time').val(60);
+            }
+        });
+    });
+</script>
+{% endblock %}

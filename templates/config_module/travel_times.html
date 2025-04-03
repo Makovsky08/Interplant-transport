@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Správa Časů Přejezdů{% endblock %}
+
+{% block additional_styles %}
+.travel-time-cell {
+    width: 80px;
+    text-align: center;
+}
+.travel-time-input {
+    width: 60px;
+    text-align: center;
+}
+.travel-time-table th {
+    text-align: center;
+    vertical-align: middle;
+}
+.travel-time-table th.rotate {
+    height: 140px;
+    white-space: nowrap;
+}
+.travel-time-table th.rotate > div {
+    transform: translate(0px, 51px) rotate(315deg);
+    width: 30px;
+}
+.travel-time-table th.rotate > div > span {
+    border-bottom: 1px solid #ddd;
+    padding: 5px 10px;
+}
+.travel-time-table td.same-plant {
+    background-color: #f8f9fa;
+}
+.travel-time-input.changed {
+    background-color: #d1e7dd;
+}
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>Správa Časů Přejezdů</h1>
+        <a href="{{ url_for('config_module.index') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Zpět na konfiguraci
+        </a>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Matice časů přejezdů (minuty)</h5>
+                    <div>
+                        <button type="button" class="btn btn-primary" id="saveChangesBtn">
+                            <i class="bi bi-save"></i> Uložit změny
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="resetChangesBtn">
+                            <i class="bi bi-arrow-counterclockwise"></i> Resetovat změny
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Upravte časy přejezdů mezi jednotlivými závody v minutách. Zadané hodnoty se automaticky aplikují pro oba směry (ze závodu A do B i z B do A).
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-bordered travel-time-table">
+                            <thead>
+                                <tr>
+                                    <th>Z \ Do</th>
+                                    {% for source_plant in plants %}
+                                    <th class="rotate"><div><span>{{ source_plant.name }}</span></div></th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for source_plant in plants %}
+                                <tr>
+                                    <th scope="row">{{ source_plant.name }}</th>
+                                    {% for dest_plant in plants %}
+                                    <td class="travel-time-cell {{ 'same-plant' if source_plant.identifier == dest_plant.identifier }}">
+                                        {% if source_plant.identifier == dest_plant.identifier %}
+                                        0
+                                        {% else %}
+                                        <input type="number" class="form-control travel-time-input" 
+                                               data-source="{{ source_plant.identifier }}" 
+                                               data-dest="{{ dest_plant.identifier }}" 
+                                               value="{{ travel_time_matrix[source_plant.identifier][dest_plant.identifier] if travel_time_matrix and travel_time_matrix[source_plant.identifier] and travel_time_matrix[source_plant.identifier][dest_plant.identifier] is defined else 30 }}" 
+                                               min="1" max="240">
+                                        {% endif %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function() {
+        const originalValues = {};
+        let changedValues = {};
+        
+        // Store original values
+        $('.travel-time-input').each(function() {
+            const source = $(this).data('source');
+            const dest = $(this).data('dest');
+            const key = `${source}-${dest}`;
+            originalValues[key] = $(this).val();
+        });
+        
+        // Track changes
+        $('.travel-time-input').change(function() {
+            const source = $(this).data('source');
+            const dest = $(this).data('dest');
+            const value = $(this).val();
+            const key = `${source}-${dest}`;
+            
+            // Mark as changed
+            if (originalValues[key] !== value) {
+                $(this).addClass('changed');
+                changedValues[key] = value;
+                
+                // Also update the symmetric value (B to A)
+                const reverseKey = `${dest}-${source}`;
+                $(`.travel-time-input[data-source="${dest}"][data-dest="${source}"]`).val(value).addClass('changed');
+                changedValues[reverseKey] = value;
+            } else {
+                $(this).removeClass('changed');
+                delete changedValues[key];
+                
+                // Also update the symmetric value (B to A)
+                const reverseKey = `${dest}-${source}`;
+                $(`.travel-time-input[data-source="${dest}"][data-dest="${source}"]`).val(originalValues[reverseKey]).removeClass('changed');
+                delete changedValues[reverseKey];
+            }
+            
+            // Enable/disable save button
+            if (Object.keys(changedValues).length > 0) {
+                $('#saveChangesBtn').prop('disabled', false);
+                $('#resetChangesBtn').prop('disabled', false);
+            } else {
+                $('#saveChangesBtn').prop('disabled', true);
+                $('#resetChangesBtn').prop('disabled', true);
+            }
+        });
+        
+        // Reset changes
+        $('#resetChangesBtn').click(function() {
+            $('.travel-time-input').each(function() {
+                const source = $(this).data('source');
+                const dest = $(this).data('dest');
+                const key = `${source}-${dest}`;
+                $(this).val(originalValues[key]).removeClass('changed');
+            });
+            
+            changedValues = {};
+            $('#saveChangesBtn').prop('disabled', true);
+            $('#resetChangesBtn').prop('disabled', true);
+        });
+        
+        // Save changes
+        $('#saveChangesBtn').click(function() {
+            const updatedTimes = [];
+            
+            // Get unique entries (avoiding duplicates due to symmetry)
+            const processedKeys = new Set();
+            
+            for (const key in changedValues) {
+                // Skip if already processed the symmetric pair
+                if (processedKeys.has(key)) continue;
+                
+                const [source, dest] = key.split('-');
+                const value = changedValues[key];
+                
+                updatedTimes.push({
+                    source_plant: parseInt(source),
+                    dest_plant: parseInt(dest),
+                    time_minutes: parseInt(value)
+                });
+                
+                // Mark this and the symmetric key as processed
+                processedKeys.add(key);
+                processedKeys.add(`${dest}-${source}`);
+            }
+            
+            if (updatedTimes.length === 0) return;
+            
+            // Show loading state
+            const originalText = $(this).html();
+            $(this).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Ukládám...');
+            $(this).prop('disabled', true);
+            $('#resetChangesBtn').prop('disabled', true);
+            
+            // Save each time separately
+            const savePromises = updatedTimes.map(item => {
+                return $.ajax({
+                    url: '{{ url_for("config_module.update_travel_time") }}',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(item)
+                });
+            });
+            
+            Promise.all(savePromises)
+                .then(responses => {
+                    // Check if all updates were successful
+                    const allSuccessful = responses.every(response => response.success);
+                    
+                    if (allSuccessful) {
+                        // Update original values with the new ones
+                        for (const key in changedValues) {
+                            originalValues[key] = changedValues[key];
+                        }
+                        
+                        // Clear changed values
+                        $('.travel-time-input').removeClass('changed');
+                        changedValues = {};
+                        
+                        // Show success message
+                        alert('Časy přejezdů byly úspěšně aktualizovány.');
+                    } else {
+                        // Show error message
+                        alert('Některé časy se nepodařilo aktualizovat. Zkontrolujte prosím zadané hodnoty.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating travel times:', error);
+                    alert('Při ukládání změn došlo k chybě.');
+                })
+                .finally(() => {
+                    // Reset button state
+                    $(this).html(originalText);
+                    $('#saveChangesBtn').prop('disabled', Object.keys(changedValues).length === 0);
+                    $('#resetChangesBtn').prop('disabled', Object.keys(changedValues).length === 0);
+                });
+        });
+        
+        // Initialize buttons state
+        $('#saveChangesBtn').prop('disabled', true);
+        $('#resetChangesBtn').prop('disabled', true);
+    });
+</script>
+{% endblock %}

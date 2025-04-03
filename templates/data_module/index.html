@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Datový Modul{% endblock %}
+
+{% block additional_styles %}
+.config-card {
+    height: 100%;
+    transition: transform 0.3s ease;
+}
+.config-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+.config-icon {
+    font-size: 3rem;
+    color: #0d6efd;
+    margin-bottom: 1rem;
+}
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>Datový Modul</h1>
+        <a href="/" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Zpět na hlavní stránku
+        </a>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-4 mb-4">
+            <div class="card config-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-code-square config-icon"></i>
+                    <h5 class="card-title">WATRA Kódy</h5>
+                    <p class="card-text">Správa WATRA kódů pro identifikaci přepravovaných celků</p>
+                    <a href="{{ url_for('data_module.watra_codes') }}" class="btn btn-primary">Spravovat</a>
+                </div>
+                <div class="card-footer text-muted text-center">
+                    {{ watra_data|length }} WATRA kódů
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="card config-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-bar-chart config-icon"></i>
+                    <h5 class="card-title">Analýza Dat</h5>
+                    <p class="card-text">Analyzujte historická data a vytvářejte celky pro plánování</p>
+                    <a href="{{ url_for('data_module.analysis') }}" class="btn btn-primary">Spravovat</a>
+                </div>
+                <div class="card-footer text-muted text-center">
+                    {{ celky_data|length }} celků vytvořeno
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+            <div class="card config-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-gear-wide-connected config-icon"></i>
+                    <h5 class="card-title">Konfigurační Modul</h5>
+                    <p class="card-text">Nastavení závodů, shuttlů a jízdních řádů</p>
+                    <a href="{{ url_for('config_module.index') }}" class="btn btn-primary">Otevřít</a>
+                </div>
+                <div class="card-footer text-muted text-center">
+                    Správa konfigurace systému
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Přehled dat</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Statistika WATRA kódů</h6>
+                    <p><strong>Celkem WATRA kódů:</strong> {{ watra_data|length }}</p>
+                    <p><strong>Kódy pro jízdní řád:</strong> {{ watra_data|selectattr('pouziti_jizdni_rad', 'equalto', 'ano')|list|length }}</p>
+                    <p><strong>SAP kódy:</strong> {{ watra_data|selectattr('SAP', 'equalto', 'SAP')|list|length }}</p>
+                    <p><strong>neSAP kódy:</strong> {{ watra_data|selectattr('SAP', 'equalto', 'neSAP')|list|length }}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Statistika celků</h6>
+                    <p><strong>Celkem celků:</strong> {{ celky_data|length }}</p>
+                    <p><strong>Poslední analýza:</strong> 
+                    {% if celky_data %}
+                        {{ celky_data[0].last_analysis_date }}
+                    {% else %}
+                        Není k dispozici
+                    {% endif %}
+                    </p>
+                    <a href="{{ url_for('data_module.analysis') }}" class="btn btn-success">
+                        <i class="bi bi-play-circle"></i> Spustit novou analýzu
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{% endblock %}

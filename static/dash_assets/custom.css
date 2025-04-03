@@ -1,0 +1,305 @@
+/* static/dash_assets/custom.css */
+
+/* Match Bootstrap styling */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #212529;
+}
+
+/* Style for Dash components */
+.dash-dropdown {
+    border-radius: 0.25rem;
+    border: 1px solid #ced4da;
+    color: #495057;
+    height: 38px;
+}
+
+.dash-dropdown:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.dash-graph {
+    border-radius: 0.25rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    background-color: white;
+}
+
+/* Style for Dash radio items to match Bootstrap */
+.dash-radio-items label {
+    display: block;
+    padding: 0.375rem 0.75rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0.25rem;
+    background-color: #f8f9fa;
+    border: 1px solid #ced4da;
+}
+
+.dash-radio-items label:hover {
+    background-color: #e9ecef;
+}
+
+.dash-radio-items input[type="radio"]:checked + label {
+    background-color: #e9ecef;
+    border-color: #ced4da;
+}
+
+/* Button styles to match Bootstrap */
+button {
+    display: inline-block;
+    font-weight: 400;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    user-select: none;
+    border: 1px solid transparent;
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    border-radius: 0.25rem;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+/* Primary button style */
+.btn-primary {
+    color: #fff;
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.btn-primary:hover {
+    color: #fff;
+    background-color: #0069d9;
+    border-color: #0062cc;
+}
+
+/* Secondary button style */
+.btn-outline-secondary {
+    color: #6c757d;
+    background-color: transparent;
+    border-color: #6c757d;
+}
+
+.btn-outline-secondary:hover {
+    color: #fff;
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+/* Make sure the Dash loading spinner is visible */
+._dash-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    font-size: 24px;
+}
+
+/* Custom styles for plant tabs */
+.dash-tab-container {
+    margin-bottom: 1rem;
+}
+
+.dash-tab {
+    padding: 0.5rem 1rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem 0.25rem 0 0;
+    margin-right: 0.25rem;
+    background-color: #f8f9fa;
+}
+
+.dash-tab--selected {
+    border-bottom: none;
+    background-color: white;
+    border-top: 3px solid #007bff;
+    font-weight: 600;
+}
+
+/* Layout styles */
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-right: -15px;
+    margin-left: -15px;
+}
+
+.col-md-3 {
+    position: relative;
+    width: 100%;
+    min-height: 1px;
+    padding-right: 15px;
+    padding-left: 15px;
+    flex: 0 0 25%;
+    max-width: 25%;
+}
+
+.col-md-9 {
+    position: relative;
+    width: 100%;
+    min-height: 1px;
+    padding-right: 15px;
+    padding-left: 15px;
+    flex: 0 0 75%;
+    max-width: 75%;
+}
+
+.mb-3 {
+    margin-bottom: 1rem;
+}
+
+.p-3 {
+    padding: 1rem;
+}
+
+.bg-light {
+    background-color: #f8f9fa;
+}
+
+.rounded {
+    border-radius: 0.25rem;
+}
+
+.form-label {
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.d-flex {
+    display: flex;
+}
+
+.justify-content-between {
+    justify-content: space-between;
+}
+
+.me-2 {
+    margin-right: 0.5rem;
+}
+
+
+/* Style for tabs */
+.dash-tab {
+    padding: 10px 15px;
+    border-radius: 5px 5px 0 0;
+    border-bottom: none;
+    margin-right: 2px;
+    font-weight: 500;
+}
+
+.dash-tab--selected {
+    background-color: #f0f7ff;
+    border-top: 3px solid #0d6efd;
+}
+
+/* Style for the range slider */
+.rc-slider-track {
+    background-color: #0d6efd;
+}
+
+.rc-slider-handle {
+    border-color: #0d6efd;
+}
+
+.rc-slider-handle:hover {
+    border-color: #0a58ca;
+}
+
+.rc-slider-handle:active {
+    border-color: #0a58ca;
+    box-shadow: 0 0 5px #0a58ca;
+}
+
+/* Improved hover labels for the Gantt chart */
+.hoverlabel {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+/* Custom scrollbar for the Gantt chart */
+.dash-graph {
+    overflow: auto;
+}
+
+.dash-graph::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.dash-graph::-webkit-scrollbar-track {
+    background: #f5f5f5;
+    border-radius: 10px;
+}
+
+.dash-graph::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 10px;
+}
+
+.dash-graph::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .dash-graph {
+        height: 500px !important;
+    }
+}
+
+/* Override Bootstrap modal z-index for compatibility with Dash components */
+.modal {
+    z-index: 1050;
+}
+
+/* Style for filter controls */
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.3rem;
+}
+
+/* Style for summary section */
+#solution-quality {
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+/* Style based on solution quality */
+#solution-quality.solution-good {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+#solution-quality.solution-fair {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+#solution-quality.solution-poor {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+/* Enhanced tooltip style */
+.dash-tooltip {
+    opacity: 0.95 !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+
+/* Animation for loading spinner */
+@keyframes dash-loading-spinners {
+    to {
+        transform: rotate(360deg);
+    }
+}

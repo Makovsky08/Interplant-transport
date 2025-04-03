@@ -1,0 +1,616 @@
+{% extends "base.html" %}
+
+{% block title %}Správa WATRA Kódů{% endblock %}
+
+{% block additional_styles %}
+.card-header .btn {
+    margin-left: 10px;
+}
+.table th, .table td {
+    vertical-align: middle;
+}
+.edit-form {
+    display: none;
+}
+.action-buttons {
+    white-space: nowrap;
+}
+@media (max-width: 992px) {
+    .table-responsive table {
+        min-width: 1200px;
+    }
+}
+
+.table td:nth-child(7) {
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.2.9/css/responsive.bootstrap5.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>Správa WATRA Kódů</h1>
+        <a href="{{ url_for('data_module.index') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Zpět na datový modul
+        </a>
+    </div>
+    
+    {% if message %}
+    <div class="alert {% if 'úspěšně' in message %}alert-success{% else %}alert-danger{% endif %}" role="alert">
+        {{ message }}
+    </div>
+    {% endif %}
+    
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Seznam WATRA kódů</h5>
+            <div>
+                <button type="button" class="btn btn-primary" id="newCodeBtn">
+                    <i class="bi bi-plus-circle"></i> Přidat nový kód
+                </button>
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#importModal">
+                    <i class="bi bi-file-excel"></i> Importovat z Excel
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="watra-codes-table" class="table table-striped table-bordered table-sm">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Zásilka</th>
+                            <th>Použití WATRA</th>
+                            <th>Příklad</th>
+                            <th>Popis kódu</th>
+                            <th>Regex pravidlo</th>
+                            <th>SQL like pattern</th>
+                            <th>Materiál WMRFC</th>
+                            <th>Kusy WMRFC</th>
+                            <th>Váha dodací list</th>
+                            <th>SAP</th>
+                            <th>POHday</th>
+                            <th>Výsledky</th>
+                            <th>Použití jízdní řád</th>
+                            <th>Pohyby</th>
+                            <th>Akce</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in watra_data %}
+                        <tr data-id="{{ item.id }}">
+                            <td data-field="id">{{ item.id }}</td>
+                            <td data-field="zasilka">{{ item.zasilka }}</td>
+                            <td data-field="pouziti_WATRA">{{ item.pouziti_WATRA }}</td>
+                            <td data-field="example">{{ item.example }}</td>
+                            <td data-field="code_description">{{ item.code_description }}</td>
+                            <td data-field="regex_pravidlo">{{ item.regex_pravidlo }}</td>
+                            <td data-field="sql_like_pattern">{{ item.sql_like_pattern }}</td>
+                            <td data-field="material_WMRFC">{{ item.material_WMRFC }}</td>
+                            <td data-field="Kusy_WMRFC">{{ item.Kusy_WMRFC }}</td>
+                            <td data-field="Vaha_dodaci_list">{{ item.Vaha_dodaci_list }}</td>
+                            <td data-field="SAP">{{ item.SAP }}</td>
+                            <td data-field="POHday_pravidla_sloupce">{{ item.POHday_pravidla_sloupce }}</td>
+                            <td data-field="pri_vice_vysledcich">{{ item.pri_vice_vysledcich }}</td>
+                            <td data-field="pouziti_jizdni_rad">{{ item.pouziti_jizdni_rad }}</td>
+                            <td data-field="pohyby_zdroj_cil_nad">{{ item.pohyby_zdroj_cil_nad }}</td>
+                            <td class="action-buttons">
+                                <button class="btn btn-sm btn-primary edit-btn" data-id="{{ item.id }}">
+                                    <i class="bi bi-pencil"></i> Upravit
+                                </button>
+                                <button class="btn btn-sm btn-danger delete-btn" data-id="{{ item.id }}" data-name="{{ item.zasilka }}">
+                                    <i class="bi bi-trash"></i> Smazat
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- New code form -->
+    <div class="card mb-4" id="newCodeForm" style="display: none;">
+        <div class="card-header">
+            <h5>Přidat nový kód</h5>
+        </div>
+        <div class="card-body">
+            <form id="addCodeForm" action="{{ url_for('data_module.add_watra_kod_route') }}" method="post">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="new_zasilka" class="form-label">Zásilka *</label>
+                        <input type="text" class="form-control" id="new_zasilka" name="zasilka" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="new_pouziti_WATRA" class="form-label">Použití WATRA</label>
+                        <select class="form-control" id="new_pouziti_WATRA" name="pouziti_WATRA">
+                            <option value="ano">ano</option>
+                            <option value="ne">ne</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="new_example" class="form-label">Příklad</label>
+                        <input type="text" class="form-control" id="new_example" name="example">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="new_code_description" class="form-label">Popis kódu</label>
+                        <input type="text" class="form-control" id="new_code_description" name="code_description">
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="new_regex_pravidlo" class="form-label">Regex pravidlo *</label>
+                        <input type="text" class="form-control" id="new_regex_pravidlo" name="regex_pravidlo" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="new_sql_like_pattern" class="form-label">SQL like pravidlo *</label>
+                        <input type="text" class="form-control" id="new_sql_like_pattern" name="sql_like_pattern" required>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="new_material_WMRFC" class="form-label">Materiál WMRFC</label>
+                        <input type="text" class="form-control" id="new_material_WMRFC" name="material_WMRFC">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="new_Kusy_WMRFC" class="form-label">Kusy WMRFC</label>
+                        <input type="text" class="form-control" id="new_Kusy_WMRFC" name="Kusy_WMRFC">
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="new_Vaha_dodaci_list" class="form-label">Váha dodací list</label>
+                        <input type="number" class="form-control" id="new_Vaha_dodaci_list" name="Vaha_dodaci_list" step="0.1" value="0">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="new_SAP" class="form-label">SAP</label>
+                        <select class="form-control" id="new_SAP" name="SAP">
+                            <option value="SAP">SAP</option>
+                            <option value="neSAP">neSAP</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="new_POHday_pravidla_sloupce" class="form-label">POHday pravidla sloupce</label>
+                        <select class="form-control" id="new_POHday_pravidla_sloupce" name="POHday_pravidla_sloupce">
+                            <option value="LE">LE</option>
+                            <option value="TANUM+TAPOS (normalizovaný)">TANUM+TAPOS (normalizovaný)</option>
+                            <option value="TANUM/TAPOS">TANUM/TAPOS</option>
+                            <option value="Multibaleni">Multibaleni</option>
+                            <option value="">Default</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label for="new_pri_vice_vysledcich" class="form-label">Při více výsledcích</label>
+                        <select class="form-control" id="new_pri_vice_vysledcich" name="pri_vice_vysledcich">
+                            <option value="prvni">první</option>
+                            <option value="posledni">poslední</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="new_pouziti_jizdni_rad" class="form-label">Použití jízdní řád</label>
+                        <select class="form-control" id="new_pouziti_jizdni_rad" name="pouziti_jizdni_rad">
+                            <option value="ano">ano</option>
+                            <option value="ne">ne</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="new_pohyby_zdroj_cil_nad" class="form-label">Pohyby zdroj-cíl nad</label>
+                        <input type="number" class="form-control" id="new_pohyby_zdroj_cil_nad" name="pohyby_zdroj_cil_nad" value="0">
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col">
+                        <button type="submit" class="btn btn-primary">Uložit</button>
+                        <button type="button" class="btn btn-secondary" id="cancelNewBtn">Zrušit</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Form Modal -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editModalLabel">Upravit WATRA kód</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editForm">
+                    <input type="hidden" id="edit_id" name="id">
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="edit_zasilka" class="form-label">Zásilka *</label>
+                            <input type="text" class="form-control" id="edit_zasilka" name="zasilka" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_pouziti_WATRA" class="form-label">Použití WATRA</label>
+                            <select class="form-control" id="edit_pouziti_WATRA" name="pouziti_WATRA">
+                                <option value="ano">ano</option>
+                                <option value="ne">ne</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="edit_example" class="form-label">Příklad</label>
+                            <input type="text" class="form-control" id="edit_example" name="example">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_code_description" class="form-label">Popis kódu</label>
+                            <input type="text" class="form-control" id="edit_code_description" name="code_description">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="edit_regex_pravidlo" class="form-label">Regex pravidlo *</label>
+                            <input type="text" class="form-control" id="edit_regex_pravidlo" name="regex_pravidlo" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_sql_like_pattern" class="form-label">SQL like pattern *</label>
+                            <input type="text" class="form-control" id="edit_sql_like_pattern" name="sql_like_pattern" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="edit_material_WMRFC" class="form-label">Materiál WMRFC</label>
+                            <input type="text" class="form-control" id="edit_material_WMRFC" name="material_WMRFC">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_Kusy_WMRFC" class="form-label">Kusy WMRFC</label>
+                            <input type="text" class="form-control" id="edit_Kusy_WMRFC" name="Kusy_WMRFC">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="edit_Vaha_dodaci_list" class="form-label">Váha dodací list</label>
+                            <input type="number" class="form-control" id="edit_Vaha_dodaci_list" name="Vaha_dodaci_list" step="0.1">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="edit_SAP" class="form-label">SAP</label>
+                            <select class="form-control" id="edit_SAP" name="SAP">
+                                <option value="SAP">SAP</option>
+                                <option value="neSAP">neSAP</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="edit_POHday_pravidla_sloupce" class="form-label">POHday pravidla</label>
+                            <select class="form-control" id="edit_POHday_pravidla_sloupce" name="POHday_pravidla_sloupce">
+                                <option value="LE">LE</option>
+                                <option value="TANUM+TAPOS (normalizovaný)">TANUM+TAPOS (normalizovaný)</option>
+                                <option value="TANUM/TAPOS">TANUM/TAPOS</option>
+                                <option value="Multibaleni">Multibaleni</option>
+                                <option value="0">Default</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="edit_pri_vice_vysledcich" class="form-label">Při více výsledcích</label>
+                            <select class="form-control" id="edit_pri_vice_vysledcich" name="pri_vice_vysledcich">
+                                <option value="prvni">první</option>
+                                <option value="posledni">poslední</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="edit_pouziti_jizdni_rad" class="form-label">Použití jízdní řád</label>
+                            <select class="form-control" id="edit_pouziti_jizdni_rad" name="pouziti_jizdni_rad">
+                                <option value="ano">ano</option>
+                                <option value="ne">ne</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="edit_pohyby_zdroj_cil_nad" class="form-label">Pohyby zdroj-cíl nad</label>
+                            <input type="number" class="form-control" id="edit_pohyby_zdroj_cil_nad" name="pohyby_zdroj_cil_nad">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                <button type="button" class="btn btn-primary" id="saveEditBtn">Uložit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmDeleteModalLabel">Potvrdit smazání</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Opravdu chcete smazat WATRA kód <span id="codeNameToDelete"></span>?</p>
+                <p class="text-danger">Tato akce je nevratná.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Smazat</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importModalLabel">Importovat z Excel</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('data_module.watra_kody') }}" method="post" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="excel_file" class="form-label">Vyberte Excel soubor s WATRA kódy:</label>
+                        <input type="file" class="form-control" id="excel_file" name="excel_file" accept=".xlsx,.xls" required>
+                        <div class="form-text">
+                            Excel soubor musí obsahovat sloupce odpovídající struktuře tabulky WATRA kódů.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                    <button type="submit" class="btn btn-primary">Importovat</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/responsive/2.2.9/js/responsive.bootstrap5.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Initialize DataTable
+    const dataTable = $('#watra-codes-table').DataTable({
+        pageLength: 25,
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/cs.json'
+        },
+        responsive: {
+            details: {
+                display: $.fn.dataTable.Responsive.display.modal({
+                    header: function(row) {
+                        return 'Detail záznamu ' + row.data()[1]; // Show the "Zásilka" value
+                    }
+                }),
+                renderer: $.fn.dataTable.Responsive.renderer.tableAll({
+                    tableClass: 'table table-striped'
+                })
+            }
+        },
+        columnDefs: [
+            { responsivePriority: 1, targets: [1, 13, 14, 15] }, // Prioritize Zásilka and Actions columns
+            { responsivePriority: 2, targets: [0, 4, 6] }, // Next priority to ID, Popis, and Regex
+            { visible: false, targets: [7, 8, 9] } // Hide some columns by default
+        ]
+    });
+
+    // New code button
+    $('#newCodeBtn').click(function() {
+        $('#newCodeForm').slideDown();
+    });
+
+    // Cancel new code
+    $('#cancelNewBtn').click(function() {
+        $('#newCodeForm').slideUp();
+        $('#addCodeForm')[0].reset();
+    });
+
+    // Edit button handler
+    $('.edit-btn').click(function() {
+        const id = $(this).data('id');
+        const row = $(`tr[data-id="${id}"]`);
+        
+        $('#edit_id').val(id);
+        $('#edit_zasilka').val(row.find('td[data-field="zasilka"]').text());
+        $('#edit_pouziti_WATRA').val(row.find('td[data-field="pouziti_WATRA"]').text());
+        $('#edit_example').val(row.find('td[data-field="example"]').text());
+        $('#edit_code_description').val(row.find('td[data-field="code_description"]').text());
+        $('#edit_regex_pravidlo').val(row.find('td[data-field="regex_pravidlo"]').text());
+        $('#edit_sql_like_pattern').val(row.find('td[data-field="sql_like_pattern"]').text());
+        $('#edit_material_WMRFC').val(row.find('td[data-field="material_WMRFC"]').text());
+        $('#edit_Kusy_WMRFC').val(row.find('td[data-field="Kusy_WMRFC"]').text());
+        $('#edit_Vaha_dodaci_list').val(row.find('td[data-field="Vaha_dodaci_list"]').text());
+        $('#edit_SAP').val(row.find('td[data-field="SAP"]').text());
+        $('#edit_POHday_pravidla_sloupce').val(row.find('td[data-field="POHday_pravidla_sloupce"]').text());
+        $('#edit_pri_vice_vysledcich').val(row.find('td[data-field="pri_vice_vysledcich"]').text());
+        $('#edit_pouziti_jizdni_rad').val(row.find('td[data-field="pouziti_jizdni_rad"]').text());
+        $('#edit_pohyby_zdroj_cil_nad').val(row.find('td[data-field="pohyby_zdroj_cil_nad"]').text());
+        
+        $('#editModal').modal('show');
+    });
+
+    // Delete button handler
+    $('.delete-btn').click(function() {
+        const id = $(this).data('id');
+        const name = $(this).data('name');
+        
+        $('#codeNameToDelete').text(name);
+        $('#confirmDeleteBtn').data('id', id);
+        
+        $('#confirmDeleteModal').modal('show');
+    });
+    
+    // Confirm delete handler
+    $('#confirmDeleteBtn').click(function() {
+        const id = $(this).data('id');
+        
+        // Send delete request
+        $.ajax({
+            url: `/data_module/watra_kody/delete/${id}`,
+            type: 'POST',
+            success: function(response) {
+                if (response.success) {
+                    // Remove row from table
+                    dataTable.row($(`tr[data-id="${id}"]`)).remove().draw();
+                    
+                    // Close modal and show success notification
+                    $('#confirmDeleteModal').modal('hide');
+                    alert('WATRA kód byl úspěšně smazán.');
+                } else {
+                    alert(`Chyba: ${response.message}`);
+                }
+            },
+            error: function() {
+                alert('Došlo k chybě při komunikaci se serverem.');
+            }
+        });
+    });
+    
+    // Save edit handler
+    $('#saveEditBtn').click(function() {
+        const formData = {
+            id: $('#edit_id').val(),
+            zasilka: $('#edit_zasilka').val(),
+            pouziti_WATRA: $('#edit_pouziti_WATRA').val(),
+            example: $('#edit_example').val(),
+            code_description: $('#edit_code_description').val(),
+            regex_pravidlo: $('#edit_regex_pravidlo').val(),
+            sql_like_pattern: $('#edit_sql_like_pattern').val(),
+            material_WMRFC: $('#edit_material_WMRFC').val(),
+            Kusy_WMRFC: $('#edit_Kusy_WMRFC').val(),
+            Vaha_dodaci_list: $('#edit_Vaha_dodaci_list').val(),
+            SAP: $('#edit_SAP').val(),
+            POHday_pravidla_sloupce: $('#edit_POHday_pravidla_sloupce').val(),
+            pri_vice_vysledcich: $('#edit_pri_vice_vysledcich').val(),
+            pouziti_jizdni_rad: $('#edit_pouziti_jizdni_rad').val(),
+            pohyby_zdroj_cil_nad: $('#edit_pohyby_zdroj_cil_nad').val()
+        };
+        
+        // Send update request
+        $.ajax({
+            url: '/data_module/watra_kody/update',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(formData),
+            success: function(response) {
+                if (response.success) {
+                    // Update row in the table
+                    const row = $(`tr[data-id="${formData.id}"]`);
+                    
+                    row.find('td[data-field="zasilka"]').text(formData.zasilka);
+                    row.find('td[data-field="pouziti_WATRA"]').text(formData.pouziti_WATRA);
+                    row.find('td[data-field="example"]').text(formData.example);
+                    row.find('td[data-field="code_description"]').text(formData.code_description);
+                    row.find('td[data-field="regex_pravidlo"]').text(formData.regex_pravidlo);
+                    row.find('td[data-field="sql_like_pattern"]').text(formData.sql_like_pattern);
+                    row.find('td[data-field="material_WMRFC"]').text(formData.material_WMRFC);
+                    row.find('td[data-field="Kusy_WMRFC"]').text(formData.Kusy_WMRFC);
+                    row.find('td[data-field="Vaha_dodaci_list"]').text(formData.Vaha_dodaci_list);
+                    row.find('td[data-field="SAP"]').text(formData.SAP);
+                    row.find('td[data-field="POHday_pravidla_sloupce"]').text(formData.POHday_pravidla_sloupce);
+                    row.find('td[data-field="pri_vice_vysledcich"]').text(formData.pri_vice_vysledcich);
+                    row.find('td[data-field="pouziti_jizdni_rad"]').text(formData.pouziti_jizdni_rad);
+                    row.find('td[data-field="pohyby_zdroj_cil_nad"]').text(formData.pohyby_zdroj_cil_nad);
+                    
+                    // Redraw the table
+                    dataTable.row(row).invalidate().draw(false);
+                    
+                    // Close modal and show success notification
+                    $('#editModal').modal('hide');
+                    alert('WATRA kód byl úspěšně aktualizován.');
+                } else {
+                    alert(`Chyba: ${response.message}`);
+                }
+            },
+            error: function() {
+                alert('Došlo k chybě při komunikaci se serverem.');
+            }
+        });
+    });
+
+        // Add new code form submission
+        $('#addCodeForm').submit(function(e) {
+            e.preventDefault();
+            
+            // Collect form data
+            const formData = {
+                zasilka: $('#new_zasilka').val(),
+                pouziti_WATRA: $('#new_pouziti_WATRA').val(),
+                example: $('#new_example').val(),
+                code_description: $('#new_code_description').val(),
+                regex_pravidlo: $('#new_regex_pravidlo').val(),
+                sql_like_pattern: $('#new_sql_like_pattern').val(),
+                material_WMRFC: $('#new_material_WMRFC').val(),
+                Kusy_WMRFC: $('#new_Kusy_WMRFC').val(),
+                Vaha_dodaci_list: $('#new_Vaha_dodaci_list').val(),
+                SAP: $('#new_SAP').val(),
+                POHday_pravidla_sloupce: $('#new_POHday_pravidla_sloupce').val(),
+                pri_vice_vysledcich: $('#new_pri_vice_vysledcich').val(),
+                pouziti_jizdni_rad: $('#new_pouziti_jizdni_rad').val(),
+                pohyby_zdroj_cil_nad: $('#new_pohyby_zdroj_cil_nad').val()
+            };
+            
+            fetch('/data_module/watra_kody/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload the page to show the new entry
+                    window.location.reload();
+                } else {
+                    alert('Chyba: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Chyba při komunikaci se serverem.');
+                console.error('Error:', error);
+        });
+    });
+
+        // New code button
+        $('#newCodeBtn').click(function() {
+        $('#newCodeForm').slideDown();
+    });
+
+    // Cancel new code
+    $('#cancelNewBtn').click(function() {
+        $('#newCodeForm').slideUp();
+        $('#addCodeForm')[0].reset();
+    });
+});
+</script>
+{% endblock %}

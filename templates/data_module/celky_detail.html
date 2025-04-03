@@ -1,0 +1,199 @@
+<!-- templates/celky_detail.html -->
+{% extends "base.html" %}
+
+{% block title %}Detail Celku - {{ celky.name }}{% endblock %}
+
+{% block additional_styles %}
+.chart-container {
+    height: 400px;
+}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between mb-3">
+    <h1>Detail Celku: {{ celky.name }}</h1>
+    <a href="/data_module" class="btn btn-secondary">Zpět na seznam</a>
+  </div>
+  
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5>Základní informace</h5>
+        </div>
+        <div class="card-body">
+          <table class="table">
+            <tr>
+              <th>ID:</th>
+              <td>{{ celky.id }}</td>
+            </tr>
+            <tr>
+              <th>Název:</th>
+              <td>{{ celky.name }}</td>
+            </tr>
+            <tr>
+              <th>Zdrojový závod:</th>
+              <td>{{ celky.source_plant }}</td>
+            </tr>
+            <tr>
+              <th>Cílový závod:</th>
+              <td>{{ celky.dest_plant }}</td>
+            </tr>
+            <tr>
+              <th>Typ transportu:</th>
+              <td>{{ celky.transport_type }}</td>
+            </tr>
+            <tr>
+              <th>WATRA kód:</th>
+              <td>{{ celky.watra_kod }}</td>
+            </tr>
+            <tr>
+              <th>SAP typ:</th>
+              <td>{{ celky.sap_type }}</td>
+            </tr>
+            <tr>
+              <th>Poslední analýza:</th>
+              <td>{{ celky.last_analysis_date }}</td>
+            </tr>
+            <tr>
+              <th>Počet měsíců:</th>
+              <td>{{ celky.months_analyzed }}</td>
+            </tr>
+            <tr>
+              <th>Datum vytvoření:</th>
+              <td>{{ celky.creation_date }}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-md-6">
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5>Graf rozložení přesunů podle hodin</h5>
+        </div>
+        <div class="card-body">
+          <div class="chart-container" id="hourlyChart"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card">
+    <div class="card-header">
+      <h5>Hodinové statistiky</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-striped table-bordered">
+          <thead>
+            <tr>
+              <th>Hodina</th>
+              <th>Medián přesunů</th>
+              <th>90. percentil</th>
+              <th>95. percentil</th>
+              <th>Průměrný počet</th>
+              <th>Směrodatná odchylka</th>
+              <th>Variační koeficient</th>
+              <th>Maximální počet</th>
+              <th>Minimální počet</th>
+              <th>Počet dní s daty</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for stat in celky.hourly_stats %}
+            <tr>
+              <td>{{ stat.hour }}:00 - {{ stat.hour }}:59</td>
+              <td>{{ stat.median_moves }}</td>
+              <td>{{ stat.percentile_90 }}</td>
+              <td>{{ stat.percentile_95 }}</td>
+              <td>{{ stat.avg_moves|round(1) }}</td>
+              <td>{{ stat.std_dev|round(1) }}</td>
+              <td>{{ stat.variation_coef|round(1) }}%</td>
+              <td>{{ stat.max_moves }}</td>
+              <td>{{ stat.min_moves }}</td>
+              <td>{{ stat.days_count }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Prepare data for chart
+  const hours = [{% for stat in celky.hourly_stats %}'{{ stat.hour }}:00'{% if not loop.last %}, {% endif %}{% endfor %}];
+  const medians = [{% for stat in celky.hourly_stats %}{{ stat.median_moves }}{% if not loop.last %}, {% endif %}{% endfor %}];
+  const percentile90 = [{% for stat in celky.hourly_stats %}{{ stat.percentile_90 }}{% if not loop.last %}, {% endif %}{% endfor %}];
+  const averages = [{% for stat in celky.hourly_stats %}{{ stat.avg_moves }}{% if not loop.last %}, {% endif %}{% endfor %}];
+  
+  // Create chart
+  const ctx = document.getElementById('hourlyChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: hours,
+      datasets: [
+        {
+          label: 'Medián přesunů',
+          data: medians,
+          backgroundColor: 'rgba(54, 162, 235, 0.7)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1
+        },
+        {
+          label: '90. percentil',
+          data: percentile90,
+          backgroundColor: 'rgba(255, 99, 132, 0.7)',
+          borderColor: 'rgba(255, 99, 132, 1)',
+          borderWidth: 1
+        },
+        {
+          label: 'Průměrný počet',
+          data: averages,
+          backgroundColor: 'rgba(75, 192, 192, 0.7)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+        },
+        title: {
+          display: true,
+          text: 'Rozložení přesunů podle hodin'
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Počet přesunů'
+          }
+        },
+        x: {
+          title: {
+            display: true,
+            text: 'Hodina'
+          }
+        }
+      }
+    }
+  });
+});
+</script>
+{% endblock %}

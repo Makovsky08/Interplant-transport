@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Výsledky analýzy transportů WATRA{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+
+{% block content %}
+<h1>Výsledky analýzy transportů WATRA</h1>
+
+<div class="d-flex justify-content-between mb-4">
+    <a href="/test_data" class="btn btn-secondary">Zpět na formulář</a>
+    {% if csv_filename %}
+    <a href="{{ url_for('static', filename='exports/' + csv_filename) }}" class="btn btn-success">Stáhnout CSV</a>
+    {% endif %}
+</div>
+
+{% if error %}
+<div class="alert alert-danger" role="alert">
+    {{ error }}
+</div>
+{% else %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Parametry analýzy</h5>
+    </div>
+    <div class="card-body">
+        <p><strong>Počet měsíců zpět:</strong> {{ months_back }}</p>
+        <p><strong>Typy analýzy:</strong> SAP + neSAP</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Výsledky statistik transportů</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            {{ results_table|safe }}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('.table').DataTable({
+            pageLength: 25,
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/cs.json'
+            }
+        });
+    });
+</script>
+{% endblock %}

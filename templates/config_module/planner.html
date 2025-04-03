@@ -1,0 +1,1498 @@
+{% extends "base.html" %}
+
+{% block title %}Plánovač Jízdního Řádu{% endblock %}
+
+{% block additional_styles %}
+.shuttle-card {
+    margin-bottom: 1rem;
+    border-left: 5px solid #0d6efd;
+}
+.celky-list {
+    max-height: 600px;
+    overflow-y: auto;
+}
+.celky-item {
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    cursor: move;
+}
+.celky-item:hover {
+    background-color: #f8f9fa;
+}
+.celky-item.selected {
+    background-color: #d1e7dd;
+}
+.shuttle-schedule {
+    min-height: 200px;
+    padding: 1rem;
+    border: 2px dashed #dee2e6;
+    border-radius: 0.25rem;
+    margin-bottom: 1rem;
+}
+.shuttle-schedule-item {
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid #0d6efd;
+    border-radius: 0.25rem;
+    background-color: #cfe2ff;
+    position: relative;
+}
+.shuttle-schedule-item .remove-btn {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    font-size: 0.75rem;
+}
+.time-input {
+    width: 80px;
+    text-align: center;
+}
+.active-schedule-alert {
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+}
+.filter-section {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 0.25rem;
+}
+.nav-tabs {
+    margin-bottom: 1rem;
+}
+.schedule-summary {
+    font-size: 0.9rem;
+}
+.schedule-summary td {
+    padding: 0.25rem 0.5rem;
+}
+
+.preprah-operation {
+    background-color: #e6f3ff;
+    font-weight: bold;
+}
+
+.preprah-time {
+    background-color: rgba(13, 110, 253, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+tr.preprah-item td {
+    background-color: #e6f7ff;
+}
+
+/* Style for operations that happen during preprah */
+.preprah-subop {
+    color: #6c757d;
+    font-style: italic;
+}
+
+
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Add this after the page header/title and before the main content -->
+    <input type="hidden" id="activeScheduleId" value="{{ active_schedule_id }}">
+
+    <!-- Add the warning alert -->
+    <div id="rcmpspResultsWarning" class="alert alert-warning mb-4 alert-dismissible fade show" role="alert" style="display: none;">
+        <div class="d-flex">
+            <div class="me-3">
+                <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            </div>
+            <div>
+                <h5 class="alert-heading">Upozornění: Existující výsledky jízdních řádů!</h5>
+                <p>Pro tento jízdní řád existují již vypočtené RCMPSP výsledky. Změna přiřazení celků k shuttlům může způsobit nekonzistenci s existujícími plány.</p>
+                <hr>
+                <p class="mb-0">Doporučení: <a href="{{ url_for('config_module.schedules') }}" class="alert-link">Vytvořte nový jízdní řád</a> pro nové plánování a zachování stávajících výsledků.</p>
+            </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
+    <!-- Add a second warning for shuttle assignments that will be shown when a user tries to clear a shuttle's assignments -->
+    <div id="clearShuttleWarning" class="alert alert-danger mb-4 alert-dismissible fade show" role="alert" style="display: none;">
+        <div class="d-flex">
+            <div class="me-3">
+                <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            </div>
+            <div>
+                <h5 class="alert-heading">Pozor: Smazání přiřazení shuttlu!</h5>
+                <p>Odstranění přiřazení celků k tomuto shuttlu může narušit existující jízdní řády RCMPSP. Tato akce je nevratná.</p>
+                <hr>
+                <div class="d-flex justify-content-end">
+                    <button type="button" class="btn btn-secondary me-2" id="cancelClearShuttle">Zrušit</button>
+                    <button type="button" class="btn btn-danger" id="confirmClearShuttle">Pokračovat a smazat</button>
+                </div>
+            </div>
+        </div>
+        <button type="button" class="btn-close" id="dismissClearShuttle" aria-label="Close"></button>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>Plánovač Jízdního Řádu</h1>
+        <div>
+            <a href="{{ url_for('rcmpsp.index') }}" class="btn btn-warning">
+                <i class="bi bi-lightning-charge"></i> Optimalizovat
+            </a>
+            <a href="{{ url_for('config_module.index') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Zpět na konfiguraci
+            </a>
+        </div>
+    </div>
+    
+
+    
+    <div class="row">
+        <!-- Left column - Celky list -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Seznam dostupných celků</h5>
+                </div>
+                <div class="card-body">
+                    <div class="filter-section">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <label for="source-filter" class="form-label">Zdrojový závod:</label>
+                                    <select class="form-select form-select-sm" id="source-filter">
+                                        <option value="">Všechny</option>
+                                        {% for plant in plants %}
+                                        <option value="{{ plant.identifier }}">{{ plant.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-2">
+                                    <label for="dest-filter" class="form-label">Cílový závod:</label>
+                                    <select class="form-select form-select-sm" id="dest-filter">
+                                        <option value="">Všechny</option>
+                                        {% for plant in plants %}
+                                        <option value="{{ plant.identifier }}">{{ plant.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <label for="search-filter" class="form-label">Hledat:</label>
+                            <input type="text" class="form-control form-control-sm" id="search-filter" placeholder="Název celku...">
+                        </div>
+                    </div>
+                    
+                    <div class="celky-list" id="availableCelkyList">
+                        {% for celky in celky_data %}
+                        <div class="celky-item" 
+                             data-id="{{ celky.id }}" 
+                             data-name="{{ celky.name }}"
+                             data-source="{{ celky.source_plant }}"
+                             data-dest="{{ celky.dest_plant }}"
+                             data-transport-type="{{ celky.transport_type }}">
+                            <h6>{{ celky.name }}</h6>
+                            <div class="d-flex justify-content-between">
+                                <small>
+                                    {% for plant in plants %}
+                                        {% if plant.identifier == celky.source_plant %}
+                                            {{ plant.name }}
+                                        {% endif %}
+                                    {% endfor %}
+                                    →
+                                    {% for plant in plants %}
+                                        {% if plant.identifier == celky.dest_plant %}
+                                            {{ plant.name }}
+                                        {% endif %}
+                                    {% endfor %}
+                                </small>
+                                <span class="badge bg-secondary">{{ celky.transport_type }}</span>
+                            </div>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary mt-1 view-celky-data-btn" data-id="{{ celky.id }}">
+                                    <i class="bi bi-graph-up"></i> Zobrazit data
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right column - Shuttle schedules -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="shuttleTabs" role="tablist">
+                        {% for shuttle in shuttles %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if loop.first %}active{% endif %}" 
+                                    id="shuttle-{{ shuttle.id }}-tab" 
+                                    data-bs-toggle="tab" 
+                                    data-bs-target="#shuttle-{{ shuttle.id }}" 
+                                    type="button" 
+                                    role="tab" 
+                                    aria-controls="shuttle-{{ shuttle.id }}" 
+                                    aria-selected="{% if loop.first %}true{% else %}false{% endif %}">
+                                {{ shuttle.name }}
+                            </button>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="shuttleTabsContent">
+                        {% for shuttle in shuttles %}
+                        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" 
+                             id="shuttle-{{ shuttle.id }}" 
+                             role="tabpanel" 
+                             aria-labelledby="shuttle-{{ shuttle.id }}-tab">
+                            
+                            <div class="shuttle-card">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h5>{{ shuttle.name }}</h5>
+                                        <div>
+                                            <span class="badge bg-primary">Kapacita: {{ shuttle.capacity }} palet</span>
+                                            <span class="badge bg-info">{{ shuttle.shift_length }} hodin</span>
+                                            <span class="badge {% if shuttle.shuttle_type == 'preprah' %}bg-warning{% else %}bg-secondary{% endif %}">{{ shuttle.shuttle_type }}</span>
+                                            {% if shuttle.shuttle_type == 'preprah' %}
+                                            <span class="badge bg-light text-dark border">Výměna návěsu: {{ shuttle.preprah_length }} min</span>
+                                            <span class="badge bg-light text-dark border">Místo výměny: 
+                                                {% for plant in plants %}
+                                                    {% if plant.identifier == shuttle.preprah_destination %}
+                                                        {{ plant.name }}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="schedule-summary-container mb-3">
+                                        <table class="table table-sm schedule-summary">
+                                            <tbody>
+                                                <tr>
+                                                    <td>Celkem celků:</td>
+                                                    <td class="shuttle-celky-count">0</td>
+                                                    <td>Počáteční závod:</td>
+                                                    <td class="shuttle-start-plant">
+                                                        {% for plant in plants %}
+                                                            {% if plant.identifier == 4 %}
+                                                                {{ plant.name }}
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </td>
+                                                </tr>
+                                                <tr class="scenario-data avg-median-data-{{ shuttle.id }}">
+                                                    <td>Čas frekvence (průměr):</td>
+                                                    <td class="shuttle-median-frequency-time">0 min</td>
+                                                    <td>Počet frekvencí (průměr):</td>
+                                                    <td class="shuttle-median-frequencies">0</td>
+                                                </tr>
+                                                <tr class="scenario-data peak-median-data-{{ shuttle.id }}" style="display: none;">
+                                                    <td>Čas frekvence (špička):</td>
+                                                    <td class="shuttle-peak-median-frequency-time">0 min</td>
+                                                    <td>Počet frekvencí (špička):</td>
+                                                    <td class="shuttle-peak-median-frequencies">0</td>
+                                                </tr>
+                                                <tr class="scenario-data avg-p90-data-{{ shuttle.id }}" style="display: none;">
+                                                    <td>Čas frekvence (P90 průměr):</td>
+                                                    <td class="shuttle-p90-frequency-time">0 min</td>
+                                                    <td>Počet frekvencí (P90 průměr):</td>
+                                                    <td class="shuttle-p90-frequencies">0</td>
+                                                </tr>
+                                                <tr class="scenario-data peak-p90-data-{{ shuttle.id }}" style="display: none;">
+                                                    <td>Čas frekvence (P90 špička):</td>
+                                                    <td class="shuttle-peak-p90-frequency-time">0 min</td>
+                                                    <td>Počet frekvencí (P90 špička):</td>
+                                                    <td class="shuttle-peak-p90-frequencies">0</td>
+                                                </tr>
+                                                <tr>
+                                                    <td>Čas na přestávky:</td>
+                                                    <td class="shuttle-break-time">{{ shuttle.break_time }} min</td>
+                                                    <td>Kapacita shuttlu:</td>
+                                                    <td>{{ shuttle.capacity }} palet</td>
+                                                </tr>
+                                                <tr class="scenario-data avg-median-data-{{ shuttle.id }}">
+                                                    <td>Max. vytížení (prům):</td>
+                                                    <td class="shuttle-median-max-capacity">0</td>
+                                                    <td>Počátek max. vytížení:</td>
+                                                    <td class="shuttle-median-max-interval">00:00</td>
+                                                </tr>
+                                                <tr class="scenario-data peak-median-data-{{ shuttle.id }}" style="display: none;">
+                                                    <td>Max. vytížení (špička):</td>
+                                                    <td class="shuttle-peak-median-max-capacity">0</td>
+                                                    <td>Počátek max. vytížení:</td>
+                                                    <td class="shuttle-median-max-interval">00:00</td>
+                                                </tr>
+                                                <tr class="scenario-data avg-p90-data-{{ shuttle.id }}" style="display: none;">
+                                                    <td>Max. vytížení (P90 prům):</td>
+                                                    <td class="shuttle-p90-max-capacity">0</td>
+                                                    <td>Počátek max. vytížení:</td>
+                                                    <td class="shuttle-p90-max-interval">00:00</td>
+                                                </tr>
+                                                <tr class="scenario-data peak-p90-data-{{ shuttle.id }}" style="display: none;">
+                                                    <td>Max. vytížení (P90 špička):</td>
+                                                    <td class="shuttle-peak-p90-max-capacity">0</td>
+                                                    <td>Počátek max. vytížení:</td>
+                                                    <td class="shuttle-p90-max-interval">00:00</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+
+                                        <div class="d-flex align-items-center mt-3 mb-2">
+                                            <span class="me-2">Scénář:</span>
+                                            <div class="btn-group" role="group" aria-label="Scenario selection">
+                                                <input type="radio" class="btn-check" name="scenario-radio-{{ shuttle.id }}" id="avg-median-radio-{{ shuttle.id }}" autocomplete="off" checked>
+                                                <label class="btn btn-outline-primary btn-sm" for="avg-median-radio-{{ shuttle.id }}" data-scenario="avg-median" data-shuttle-id="{{ shuttle.id }}">Medián (průměr)</label>
+                                                
+                                                <input type="radio" class="btn-check" name="scenario-radio-{{ shuttle.id }}" id="peak-median-radio-{{ shuttle.id }}" autocomplete="off">
+                                                <label class="btn btn-outline-primary btn-sm" for="peak-median-radio-{{ shuttle.id }}" data-scenario="peak-median" data-shuttle-id="{{ shuttle.id }}">Medián (špička)</label>
+                                                
+                                                <input type="radio" class="btn-check" name="scenario-radio-{{ shuttle.id }}" id="avg-p90-radio-{{ shuttle.id }}" autocomplete="off">
+                                                <label class="btn btn-outline-primary btn-sm" for="avg-p90-radio-{{ shuttle.id }}" data-scenario="avg-p90" data-shuttle-id="{{ shuttle.id }}">P90 (průměr)</label>
+                                                
+                                                <input type="radio" class="btn-check" name="scenario-radio-{{ shuttle.id }}" id="peak-p90-radio-{{ shuttle.id }}" autocomplete="off">
+                                                <label class="btn btn-outline-primary btn-sm" for="peak-p90-radio-{{ shuttle.id }}" data-scenario="peak-p90" data-shuttle-id="{{ shuttle.id }}">P90 (špička)</label>
+                                            </div>
+                                        </div>
+                                                                                
+                                        <div class="tab-content" id="route-detail-tabs-content-{{ shuttle.id }}">
+                                            
+                                         <!-- Route details section with toggle functionality -->
+                                        <div class="mt-3">
+                                            <button class="btn btn-sm btn-outline-info mb-2 toggle-route-details" data-shuttle-id="{{ shuttle.id }}">
+                                                <i class="bi bi-info-circle"></i> Zobrazit detaily trasy
+                                            </button>
+                                            
+                                            <div class="route-details" id="route-details-{{ shuttle.id }}" style="display: none;">
+                                                <div class="table-responsive">
+                                                    <!-- Average Median details table (shown by default) -->
+                                                    <table class="table table-sm table-bordered scenario-data avg-median-data-{{ shuttle.id }}">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Typ</th>
+                                                                <th>Závod</th>
+                                                                <th>Čas (min)</th>
+                                                                <th>Změna zatížení</th>
+                                                                <th>Kapacita (%)</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <!-- Once per shift section -->
+                                                            <tr class="table-secondary">
+                                                                <td colspan="5" class="text-center fw-bold">Jednou za směnu</td>
+                                                            </tr>
+                                                            <tbody id="once-per-shift-details-{{ shuttle.id }}">
+                                                                <!-- This will be populated by JavaScript with median once per shift details -->
+                                                            </tbody>
+                                        
+                                                            <!-- Frequency section -->
+                                                            <tr class="table-secondary">
+                                                                <td colspan="5" class="text-center fw-bold">Opakující se frekvence</td>
+                                                            </tr>
+                                                            <tbody id="avg-median-details-body-{{ shuttle.id }}">
+                                                                <!-- Will be populated by JavaScript with median route details -->
+                                                            </tbody>
+                                                        </table>
+                                                    
+                                                    <!-- Peak Median details table (hidden by default) -->
+                                                    <table class="table table-sm table-bordered scenario-data peak-median-data-{{ shuttle.id }}" style="display: none;">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Typ</th>
+                                                                <th>Závod</th>
+                                                                <th>Čas (min)</th>
+                                                                <th>Změna zatížení</th>
+                                                                <th>Kapacita (%)</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <!-- Once per shift section -->
+                                                            <tr class="table-secondary">
+                                                                <td colspan="5" class="text-center fw-bold">Jednou za směnu</td>
+                                                            </tr>
+                                                            <tbody id="peak-median-once-per-shift-details-{{ shuttle.id }}">
+                                                                <!-- This will be populated by JavaScript with peak median once per shift details -->
+                                                            </tbody>
+                                        
+                                                            <!-- Frequency section -->
+                                                            <tr class="table-secondary">
+                                                                <td colspan="5" class="text-center fw-bold">Opakující se frekvence</td>
+                                                            </tr>
+                                                            <tbody id="peak-median-details-body-{{ shuttle.id }}">
+                                                                <!-- Will be populated by JavaScript with peak median route details -->
+                                                            </tbody>
+                                                        </table>
+                                                    
+                                                    <!-- Average P90 details table (hidden by default) -->
+                                                    <table class="table table-sm table-bordered scenario-data avg-p90-data-{{ shuttle.id }}" style="display: none;">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Typ</th>
+                                                                <th>Závod</th>
+                                                                <th>Čas (min)</th>
+                                                                <th>Změna zatížení</th>
+                                                                <th>Kapacita (%)</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <!-- Once per shift section -->
+                                                            <tr class="table-secondary">
+                                                                <td colspan="5" class="text-center fw-bold">Jednou za směnu</td>
+                                                            </tr>
+                                                            <tbody id="avg-p90-once-per-shift-details-{{ shuttle.id }}">
+                                                                <!-- This will be populated by JavaScript with p90 once per shift details -->
+                                                            </tbody>
+                                        
+                                                            <!-- Frequency section -->
+                                                            <tr class="table-secondary">
+                                                                <td colspan="5" class="text-center fw-bold">Opakující se frekvence</td>
+                                                            </tr>
+                                                            <tbody id="avg-p90-details-body-{{ shuttle.id }}">
+                                                                <!-- Will be populated by JavaScript with p90 route details -->
+                                                            </tbody>
+                                                        </table>
+                                                    
+                                                    <!-- Peak P90 details table (hidden by default) -->
+                                                    <table class="table table-sm table-bordered scenario-data peak-p90-data-{{ shuttle.id }}" style="display: none;">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Typ</th>
+                                                                <th>Závod</th>
+                                                                <th>Čas (min)</th>
+                                                                <th>Změna zatížení</th>
+                                                                <th>Kapacita (%)</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <!-- Once per shift section -->
+                                                            <tr class="table-secondary">
+                                                                <td colspan="5" class="text-center fw-bold">Jednou za směnu</td>
+                                                            </tr>
+                                                            <tbody id="peak-p90-once-per-shift-details-{{ shuttle.id }}">
+                                                                <!-- This will be populated by JavaScript -->
+                                                            </tbody>
+
+                                                            <!-- Frequency section -->
+                                                            <tr class="table-secondary">
+                                                                <td colspan="5" class="text-center fw-bold">Opakující se frekvence</td>
+                                                            </tr>
+                                                            <tbody id="peak-p90-details-body-{{ shuttle.id }}">
+                                                                <!-- Will be populated by JavaScript -->
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <h6>Přiřazené celky</h6>
+                                    <div class="shuttle-schedule" id="shuttle-{{ shuttle.id }}-schedule" data-shuttle-id="{{ shuttle.id }}">
+                                        <!-- Assigned celky will be displayed here -->
+                                        {% for assignment in assignments %}
+                                            {% if assignment.shuttle_id == shuttle.id %}
+                                            <div class="shuttle-schedule-item" 
+                                                 data-assignment-id="{{ assignment.id }}"
+                                                 data-celky-id="{{ assignment.celky_id }}"
+                                                 data-order="{{ assignment.route_order }}">
+                                                <button class="btn btn-sm btn-close remove-btn" type="button" aria-label="Close"></button>
+                                                <h6>{{ assignment.celky_name }}</h6>
+                                                <div class="d-flex justify-content-between">
+                                                    <small>
+                                                        {% for plant in plants %}
+                                                            {% if plant.identifier == assignment.source_plant %}
+                                                                {{ plant.name }}
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                        →
+                                                        {% for plant in plants %}
+                                                            {% if plant.identifier == assignment.dest_plant %}
+                                                                {{ plant.name }}
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </small>
+                                                    <div>
+                                                        <input type="time" class="form-control form-control-sm time-input planned-start-time" 
+                                                               value="{{ assignment.planned_start_time }}" placeholder="Čas">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    
+                                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                        <button class="btn btn-sm btn-outline-danger clear-shuttle-btn" data-shuttle-id="{{ shuttle.id }}">
+                                            <i class="bi bi-trash"></i> Vyčistit
+                                        </button>
+                                        <button class="btn btn-sm btn-primary save-shuttle-schedule-btn" data-shuttle-id="{{ shuttle.id }}">
+                                            <i class="bi bi-save"></i> Uložit změny
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Celky Data Modal -->
+<div class="modal fade" id="celkyDataModal" tabindex="-1" aria-labelledby="celkyDataModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="celkyDataModalLabel">Detail celku</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="celkyDataContent">
+                    <!-- Content will be loaded here -->
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Načítání...</span>
+                        </div>
+                        <p>Načítání dat...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zavřít</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+    function checkRcmpspResults(scheduleId) {
+        if (!scheduleId) return;
+        
+        $.ajax({
+            url: '/rcmpsp/check_results/' + scheduleId,
+            type: 'GET',
+            success: function(response) {
+                if (response.has_results) {
+                    // Show warning
+                    $('#rcmpspResultsWarning').fadeIn();
+                } else {
+                    // Hide warning
+                    $('#rcmpspResultsWarning').hide();
+                }
+            },
+            error: function() {
+                // Hide warning on error
+                $('#rcmpspResultsWarning').hide();
+            }
+        });
+    }
+
+    $('#rcmpspResultsWarning .btn-close').on('click', function() {
+        $('#rcmpspResultsWarning').hide();
+    });
+    
+    $('#dismissClearShuttle').on('click', function() {
+        $('#clearShuttleWarning').hide();
+    });
+
+    
+
+    // Function to save assignments with RCMPSP warning checks
+    function saveAssignmentsWithWarningCheck(shuttleId, scheduleId, celkyIds, routeOrderMap, startTimesMap, statistics) {
+        // Prepare data for the request
+        const saveData = {
+            shuttle_id: shuttleId,
+            schedule_id: scheduleId,
+            celky_ids: celkyIds,
+            route_order_map: routeOrderMap,
+            start_times_map: startTimesMap,
+            statistics: statistics
+        };
+        
+        // First save attempt (with warnings enabled)
+        $.ajax({
+            url: '/assignments/save_schedule',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(saveData),
+            success: function(response) {
+                if (response.success) {
+                    // Normal success case
+                    alert('Změny byly úspěšně uloženy.');
+                    
+                    // Refresh the view if needed
+                    if (typeof refreshShuttleView === 'function') {
+                        refreshShuttleView(shuttleId);
+                    }
+                } else if (response.warning) {
+                    // Warning case - RCMPSP results might be affected
+                    // Create a confirmation modal
+                    const modalId = 'rcmpspWarningModal';
+                    
+                    // Remove existing modal if any
+                    $(`#${modalId}`).remove();
+                    
+                    // Create the modal
+                    const modalHtml = `
+                    <div class="modal fade" id="${modalId}" tabindex="-1" aria-labelledby="${modalId}Label" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header bg-warning text-dark">
+                                    <h5 class="modal-title" id="${modalId}Label">
+                                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                        Varování - Existující RCMPSP výsledky
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>${response.message}</p>
+                                    <p>Provádíte změny přiřazení celků, které mohou narušit existující výpočty jízdních řádů RCMPSP:</p>
+                                    <ul>
+                                        <li>Počet existujících výsledků RCMPSP: <strong>${response.results_count}</strong></li>
+                                        <li>Přidáváte: <strong>${response.changes?.additions || 0}</strong> nových celků</li>
+                                        <li>Odebíráte: <strong>${response.changes?.removals || 0}</strong> existujících celků</li>
+                                    </ul>
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-info-circle-fill me-2"></i>
+                                        Doporučujeme vytvořit nový jízdní řád místo úpravy stávajícího. Chcete pokračovat i přesto?
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <a href="{{ url_for('config_module.schedules') }}" class="btn btn-primary">
+                                        <i class="bi bi-plus-circle me-1"></i> Vytvořit nový jízdní řád
+                                    </a>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                                    <button type="button" class="btn btn-danger" id="confirmSaveBtn">
+                                        <i class="bi bi-exclamation-triangle me-1"></i> Pokračovat a přepsat
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                    
+                    // Add the modal to the body
+                    $('body').append(modalHtml);
+                    
+                    // Set up the confirm button
+                    $('#confirmSaveBtn').on('click', function() {
+                        // Add the ignore_warnings flag
+                        saveData.ignore_warnings = true;
+                        
+                        // Save again with warnings ignored
+                        $.ajax({
+                            url: '/assignments/save_schedule',
+                            type: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify(saveData),
+                            success: function(finalResponse) {
+                                if (finalResponse.success) {
+                                    alert('Změny byly úspěšně uloženy.');
+                                    
+                                    // Refresh the view if needed
+                                    if (typeof refreshShuttleView === 'function') {
+                                        refreshShuttleView(shuttleId);
+                                    }
+                                    
+                                    // Close the modal
+                                    $(`#${modalId}`).modal('hide');
+                                } else {
+                                    alert('Chyba při ukládání: ' + finalResponse.message);
+                                }
+                            },
+                            error: function(xhr, status, error) {
+                                alert('Chyba při komunikaci se serverem: ' + error);
+                            }
+                        });
+                    });
+                    
+                    // Show the modal
+                    const modal = new bootstrap.Modal(document.getElementById(modalId));
+                    modal.show();
+                } else {
+                    // Other error case
+                    alert('Chyba při ukládání: ' + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                alert('Chyba při komunikaci se serverem: ' + error);
+            }
+        });
+    }
+
+    // Function to intercept clear shuttle actions
+    function setupClearShuttleWarnings() {
+        // Store original clear button behavior
+        const originalClearButtons = $('.clear-shuttle-btn').clone(true);
+        
+        // Override clear buttons
+        $('.clear-shuttle-btn').off('click').on('click', function(e) {
+            e.preventDefault();
+            
+            const shuttleId = $(this).data('shuttle-id');
+            const shuttleName = $(this).data('shuttle-name') || 'Shuttle ' + shuttleId;
+            const activeScheduleId = $('#activeScheduleId').val();
+            
+            // Check if this shuttle has RCMPSP results
+            $.ajax({
+                url: '/config_module/check_shuttle_assignments',
+                type: 'GET',
+                data: {
+                    schedule_id: activeScheduleId
+                },
+                success: function(response) {
+                    if (response.has_rcmpsp_results) {
+                        // Show warning
+                        $('#clearShuttleWarning').show();
+                        
+                        // Set up confirm button
+                        $('#confirmClearShuttle').data('shuttle-id', shuttleId);
+                        
+                        // Set up cancel button
+                        $('#cancelClearShuttle').off('click').on('click', function() {
+                            $('#clearShuttleWarning').hide();
+                        });
+                        
+                        // Set up confirm button
+                        $('#confirmClearShuttle').off('click').on('click', function() {
+                            // Proceed with clearing the shuttle
+                            clearShuttleAssignments(shuttleId, activeScheduleId);
+                            $('#clearShuttleWarning').hide();
+                        });
+                    } else {
+                        // No RCMPSP results, proceed directly
+                        clearShuttleAssignments(shuttleId, activeScheduleId);
+                    }
+                },
+                error: function() {
+                    // On error, proceed with clearing
+                    clearShuttleAssignments(shuttleId, activeScheduleId);
+                }
+            });
+        });
+    }
+
+    // Function to actually clear shuttle assignments
+    function clearShuttleAssignments(shuttleId, scheduleId) {
+        $.ajax({
+            url: '/assignments/clear_shuttle',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                shuttle_id: shuttleId,
+                schedule_id: scheduleId
+            }),
+            success: function(response) {
+                if (response.success) {
+                    // Remove the assignments from the UI
+                    $('[data-shuttle-id="' + shuttleId + '"]').closest('.shuttle-card').find('.assigned-celky').empty();
+                    
+                    // Show success message
+                    toastr.success('Přiřazení celků k shuttlu bylo úspěšně smazáno.');
+                    
+                    // Refresh the shuttle card
+                    loadShuttleCard(shuttleId);
+                } else {
+                    toastr.error('Chyba při mazání přiřazení: ' + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                toastr.error('Chyba při komunikaci se serverem: ' + error);
+            }
+        });
+    }
+
+
+    $(document).ready(function() {
+    // Initialize variables
+    const activeScheduleId = {{ active_schedule_id or 'null' }};
+    const plants = {{ plants|tojson }};
+    const travelTimeMatrix = {{ travel_time_matrix|tojson if travel_time_matrix else '{}' }};
+
+    checkRcmpspResults(activeScheduleId);
+    
+    // Set up clear shuttle warnings
+    setupClearShuttleWarnings();
+    
+    // Schedule selector change handling (if exists)
+    $('#scheduleSelector').change(function() {
+        const selectedScheduleId = $(this).val();
+        checkRcmpspResults(selectedScheduleId);
+    });
+    
+    // Track assigned celky across all shuttles
+    let assignedCelkyIds = new Set();
+    
+    // Initialize the assigned celky IDs from existing assignments
+    function initializeAssignedCelkyIds() {
+        assignedCelkyIds.clear();
+        $('.shuttle-schedule-item').each(function() {
+            const celkyId = $(this).data('celky-id');
+            if (celkyId) {
+                assignedCelkyIds.add(celkyId);
+            }
+        });
+        
+        // Hide assigned celky in the available list
+        updateAvailableCelkyList();
+    }
+    
+    // Update the available celky list based on assigned celky
+    function updateAvailableCelkyList() {
+        $('#availableCelkyList .celky-item').each(function() {
+            const celkyId = $(this).data('id');
+            if (assignedCelkyIds.has(celkyId)) {
+                $(this).hide();
+            } else {
+                $(this).show();
+            }
+        });
+        
+        // Re-apply any current filters
+        filterCelky();
+    }
+    
+    // Initialize sortable for each shuttle schedule
+    document.querySelectorAll('.shuttle-schedule').forEach(scheduleEl => {
+        new Sortable(scheduleEl, {
+            group: {
+                name: 'shared',
+                pull: false,
+                put: true
+            },
+            animation: 150,
+            onAdd: function(evt) {
+                const item = evt.item;
+                const celkyId = $(item).data('id');
+                const celkyName = $(item).data('name');
+                const sourcePlant = $(item).data('source');
+                const destPlant = $(item).data('dest');
+                const transportType = $(item).data('transport-type');
+                const shuttleId = $(evt.to).data('shuttle-id');
+                
+                // Remove the dragged item (we'll create a new item in the shuttle schedule)
+                $(item).remove();
+                
+                // Add to shuttle schedule
+                addCelkyToShuttle(shuttleId, celkyId, celkyName, sourcePlant, destPlant, transportType);
+                
+                // Mark as assigned
+                assignedCelkyIds.add(celkyId);
+                
+                // Update available celky list
+                updateAvailableCelkyList();
+                
+                // Update summary
+                updateShuttleSummary(shuttleId);
+            },
+            onUpdate: function(evt) {
+                // Update order after drag within the same list
+                updateShuttleSummary($(evt.to).data('shuttle-id'));
+            },
+            onRemove: function(evt) {
+                // Update summary when an item is removed
+                updateShuttleSummary($(evt.from).data('shuttle-id'));
+            }
+        });
+    });
+    
+    // Make celky items draggable
+    new Sortable(document.getElementById('availableCelkyList'), {
+        group: {
+            name: 'shared',
+            pull: 'clone',
+            put: false
+        },
+        sort: false,
+        animation: 150
+    });
+    
+    // Function to add a celky to a shuttle schedule
+    function addCelkyToShuttle(shuttleId, celkyId, celkyName, sourcePlant, destPlant, transportType) {
+        const scheduleContainer = $(`#shuttle-${shuttleId}-schedule`);
+        const newItemHtml = `
+            <div class="shuttle-schedule-item" 
+                 data-celky-id="${celkyId}"
+                 data-source="${sourcePlant}"
+                 data-dest="${destPlant}">
+                <button class="btn btn-sm btn-close remove-btn" type="button" aria-label="Close"></button>
+                <h6>${celkyName}</h6>
+                <div class="d-flex justify-content-between">
+                    <small>
+                        ${getPlantName(sourcePlant)} → ${getPlantName(destPlant)}
+                    </small>
+                    <div>
+                        <input type="time" class="form-control form-control-sm time-input planned-start-time" placeholder="Čas">
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        scheduleContainer.append(newItemHtml);
+        
+        // Add event listener to remove button
+        scheduleContainer.find('.shuttle-schedule-item:last-child .remove-btn').on('click', function() {
+            const celkyId = $(this).closest('.shuttle-schedule-item').data('celky-id');
+            $(this).closest('.shuttle-schedule-item').remove();
+            
+            // Remove from assigned list
+            assignedCelkyIds.delete(celkyId);
+            
+            // Update available celky list
+            updateAvailableCelkyList();
+            
+            // Update shuttle summary
+            updateShuttleSummary(shuttleId);
+        });
+    }
+    
+    // Helper function to get plant name by identifier
+    function getPlantName(identifier) {
+        for (const plant of plants) {
+            if (plant.identifier == identifier) {
+                return plant.name;
+            }
+        }
+        return 'Unknown';
+    }
+    
+    // Function to calculate travel time between plants
+    function getTravelTime(sourcePlant, destPlant) {
+        if (!travelTimeMatrix || !travelTimeMatrix[sourcePlant] || !travelTimeMatrix[sourcePlant][destPlant]) {
+            return 30; // Default value if not found
+        }
+        return travelTimeMatrix[sourcePlant][destPlant];
+    }
+    
+    // Function to update shuttle summary
+    function updateShuttleSummary(shuttleId) {
+        const scheduleContainer = $(`#shuttle-${shuttleId}-schedule`);
+        const items = scheduleContainer.find('.shuttle-schedule-item');
+        
+        // Collect celky IDs in order
+        const celkyIds = [];
+        const routeOrderMap = {};
+        const startTimesMap = {};
+        
+        items.each(function(index) {
+            const celkyId = $(this).data('celky-id');
+            celkyIds.push(celkyId);
+            routeOrderMap[celkyId] = index + 1;
+            
+            // Get planned start time
+            const startTime = $(this).find('.planned-start-time').val();
+            if (startTime) {
+                startTimesMap[celkyId] = startTime;
+            }
+        });
+        
+        if (celkyIds.length === 0) {
+            // Reset summary if no celky
+            $(`#shuttle-${shuttleId}`).find('.shuttle-celky-count').text('0');
+            $(`#shuttle-${shuttleId}`).find('.shuttle-total-time').text('0 min');
+            $(`#shuttle-${shuttleId}`).find('.shuttle-avg-load').text('0%');
+            $(`#shuttle-${shuttleId}`).find('.shuttle-frequencies').text('0');
+            $(`#shuttle-${shuttleId}`).find('.shuttle-one-freq-time').text('0 min');
+            $(`#shuttle-${shuttleId}`).find('.shuttle-max-capacity').text('0%');
+            $(`#route-details-body-${shuttleId}`).html('');
+            return;
+        }
+
+        // Get the shuttle capacity from the badge data on the page
+        const capacityText = $(`#shuttle-${shuttleId}`).find('.badge.bg-primary').text();
+        const shuttleCapacity = parseInt(capacityText.match(/\d+/)[0]) || 40; // Default to 40 if parsing fails
+        
+        // Calculate statistics on the server
+        $.ajax({
+            url: '{{ url_for("assignments.calculate_route_statistics") }}',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                shuttle_id: shuttleId,
+                celky_ids: celkyIds,
+                schedule_id: activeScheduleId
+            }),
+            success: function(response) {
+                if (response.success) {
+                    const stats = response.statistics;
+                    
+                    // Store the statistics for saving later
+                    scheduleContainer.data('statistics', stats);
+                    
+                    // Update summary values
+                    const shuttleTab = $(`#shuttle-${shuttleId}`);
+                    
+                    // Update general summary values
+                    shuttleTab.find('.shuttle-celky-count').text(celkyIds.length);
+                    shuttleTab.find('.shuttle-break-time').text(`${stats.break_time} min`);
+                    shuttleTab.find('.shuttle-start-plant').text(getPlantName(stats.start_plant));
+                    shuttleTab.find('.shuttle-end-plant').text(getPlantName(stats.end_plant));
+
+                    // Update Average Median scenario values
+                    shuttleTab.find('.shuttle-median-frequency-time').text(`${Math.round(stats.median_frequency_time)} min`);
+                    shuttleTab.find('.shuttle-median-max-capacity').text(Math.round(stats.median_max_capacity));
+                    shuttleTab.find('.shuttle-median-frequencies').text(stats.median_frequencies);
+
+                    // Format time from minutes to HH:MM for average median
+                    const medianHour = Math.floor(stats.median_max_interval / 60);
+                    const medianMin = stats.median_max_interval % 60;
+                    shuttleTab.find('.shuttle-median-max-interval').text(`${String(medianHour).padStart(2, '0')}:${String(medianMin).padStart(2, '0')}`);
+
+                    // Update Peak Median scenario values
+                    shuttleTab.find('.shuttle-peak-median-frequency-time').text(`${Math.round(stats.peak_median_frequency_time)} min`);
+                    shuttleTab.find('.shuttle-peak-median-max-capacity').text(Math.round(stats.peak_median_max_capacity));
+                    shuttleTab.find('.shuttle-peak-median-frequencies').text(stats.peak_median_frequencies);
+
+                    // Update Average P90 scenario values
+                    shuttleTab.find('.shuttle-p90-frequency-time').text(`${Math.round(stats.p90_frequency_time)} min`);
+                    shuttleTab.find('.shuttle-p90-max-capacity').text(Math.round(stats.p90_max_capacity));
+                    shuttleTab.find('.shuttle-p90-frequencies').text(stats.p90_frequencies);
+
+                    // Format time from minutes to HH:MM for average p90
+                    const p90Hour = Math.floor(stats.p90_max_interval / 60);
+                    const p90Min = stats.p90_max_interval % 60;
+                    shuttleTab.find('.shuttle-p90-max-interval').text(`${String(p90Hour).padStart(2, '0')}:${String(p90Min).padStart(2, '0')}`);
+
+                    // Update Peak P90 scenario values
+                    shuttleTab.find('.shuttle-peak-p90-frequency-time').text(`${Math.round(stats.peak_p90_frequency_time)} min`);
+                    shuttleTab.find('.shuttle-peak-p90-max-capacity').text(Math.round(stats.peak_p90_max_capacity));
+                    shuttleTab.find('.shuttle-peak-p90-frequencies').text(stats.peak_p90_frequencies);
+
+                    // Add shuttle type info if it's preprah
+                    if (stats.shuttle_type === 'preprah') {
+                        // If preprah info row doesn't exist yet, add it
+                        if (shuttleTab.find('.shuttle-preprah-info').length === 0) {
+                            const preprahRow = `
+                            <tr class="shuttle-preprah-info">
+                                <td>Výměna návěsu:</td>
+                                <td>${stats.preprah_length} min</td>
+                                <td>Místo výměny:</td>
+                                <td>${getPlantName(stats.preprah_destination)}</td>
+                            </tr>`;
+                            shuttleTab.find('.schedule-summary tbody tr:first').after(preprahRow);
+                        }
+                    }
+
+                    // Populate route details for all scenarios
+                    populateRouteDetails(shuttleId, stats);
+                }
+            },
+            error: function() {
+                console.error('Error calculating route statistics');
+            }
+        });
+    }
+
+
+// Updated function to populate route details with scenario-specific once-per-shift details
+function populateRouteDetails(shuttleId, stats) {
+    // Helper function to build route details rows for any scenario
+    function buildRouteDetailRows(details, detailsBodyId) {
+        if (!details || details.length === 0) return;
+
+        const detailsBody = $(`#${detailsBodyId}`);
+        detailsBody.empty();
+        
+        details.forEach(detail => {
+            let row = '<tr>';
+            
+            // Type column with appropriate icon and label
+            let typeIcon = '';
+            let typeLabel = '';
+            let isPreprahOperation = detail.is_preprah_operation || false;
+            
+            if (detail.type === 'travel') {
+                typeIcon = 'bi-arrow-right';
+                typeLabel = 'Přejezd';
+                row += `<td><i class="bi ${typeIcon}"></i> ${typeLabel}</td>`;
+                row += `<td>${getPlantName(detail.from)} → ${getPlantName(detail.to)}</td>`;
+            } else if (detail.type === 'load') {
+                typeIcon = 'bi-box-arrow-up';
+                typeLabel = 'Nakládka';
+                
+                // Style differently if it's a preprah operation
+                if (isPreprahOperation) {
+                    row += `<td class="text-secondary"><i class="bi ${typeIcon}"></i> ${typeLabel}</td>`;
+                    row += `<td class="text-secondary">${getPlantName(detail.plant)}</td>`;
+                } else {
+                    row += `<td><i class="bi ${typeIcon}"></i> ${typeLabel}</td>`;
+                    row += `<td>${getPlantName(detail.plant)}</td>`;
+                }
+            } else if (detail.type === 'unload') {
+                typeIcon = 'bi-box-arrow-down';
+                typeLabel = 'Vykládka';
+                
+                // Style differently if it's a preprah operation
+                if (isPreprahOperation) {
+                    row += `<td class="text-secondary"><i class="bi ${typeIcon}"></i> ${typeLabel}</td>`;
+                    row += `<td class="text-secondary">${getPlantName(detail.plant)}</td>`;
+                } else {
+                    row += `<td><i class="bi ${typeIcon}"></i> ${typeLabel}</td>`;
+                    row += `<td>${getPlantName(detail.plant)}</td>`;
+                }
+            } else if (detail.type === 'preprah') {
+                typeIcon = 'bi-truck';
+                typeLabel = 'Výměna návěsu';
+                
+                // For preprah, create a special styled row with blue background
+                row += `<td class="fw-bold text-primary"><i class="bi ${typeIcon}"></i> ${typeLabel}</td>`;
+                row += `<td class="fw-bold text-primary">${getPlantName(detail.plant)}</td>`;
+            } else if (detail.type === 'shift_change') {
+                typeIcon = 'bi-clock-history';
+                typeLabel = 'Výměna směny';
+                
+                row += `<td><i class="bi ${typeIcon}"></i> ${typeLabel}</td>`;
+                row += `<td>${getPlantName(detail.plant)}</td>`;
+            }
+            
+            // Time
+            if (detail.type === 'preprah') {
+                row += `<td class="fw-bold text-primary">${Math.round(detail.time)} min</td>`;
+            } else if (isPreprahOperation) {
+                row += `<td class="text-secondary fst-italic">${Math.round(detail.time)} min</td>`;
+            } else {
+                row += `<td>${Math.round(detail.time)} min</td>`;
+            }
+            
+            // Load change
+            let loadChangeClass = '';
+            if (detail.load_change > 0) {
+                loadChangeClass = 'text-success';
+            } else if (detail.load_change < 0) {
+                loadChangeClass = 'text-danger';
+            }
+            
+            if (detail.type === 'preprah') {
+                row += `<td class="fw-bold text-primary">0</td>`;
+            } else if (isPreprahOperation) {
+                // For preprah operations, show the load change in grey
+                const loadChange = detail.load_change > 0 ? '+' : '';
+                row += `<td class="text-secondary fst-italic">${loadChange}${Math.round(detail.load_change)}</td>`;
+            } else {
+                row += `<td class="${loadChangeClass}">${detail.load_change > 0 ? '+' : ''}${Math.round(detail.load_change)}</td>`;
+            }
+            
+            // Capacity percentage
+            const capacityClass = detail.capacity_percent > 90 ? 'text-danger' : 
+                                detail.capacity_percent > 70 ? 'text-warning' : 'text-success';
+            
+            if (detail.type === 'preprah') {
+                row += `<td class="fw-bold text-primary">${Math.round(detail.capacity_percent)}%</td>`;
+            } else if (isPreprahOperation) {
+                row += `<td class="text-secondary fst-italic">${Math.round(detail.capacity_percent)}%</td>`;
+            } else {
+                row += `<td class="${capacityClass}">${Math.round(detail.capacity_percent)}%</td>`;
+            }
+            
+            row += '</tr>';
+            detailsBody.append(row);
+        });
+    }
+    
+    // Helper function to build once-per-shift details - modified to handle specific scenario details
+    function buildOncePerShiftDetails(details, detailsBodyId) {
+        if (!details || details.length === 0) return;
+
+        const detailsBody = $(`#${detailsBodyId}`);
+        detailsBody.empty();
+        
+        details.forEach(detail => {
+            let row = '<tr>';
+            
+            // Type column with appropriate icon and label
+            let typeIcon = '';
+            let typeLabel = '';
+            
+            switch (detail.type) {
+                case 'shift_change':
+                    typeIcon = 'bi-clock-history';
+                    typeLabel = 'Výměna směny';
+                    break;
+                case 'travel':
+                    typeIcon = 'bi-arrow-right';
+                    typeLabel = 'Přejezd';
+                    break;
+                default:
+                    typeIcon = 'bi-question';
+                    typeLabel = detail.type;
+            }
+            
+            row += `<td><i class="bi ${typeIcon}"></i> ${typeLabel}</td>`;
+            
+            // Plant information
+            if (detail.type === 'travel') {
+                row += `<td>${getPlantName(detail.from)} → ${getPlantName(detail.to)}</td>`;
+            } else {
+                row += `<td>${getPlantName(detail.plant)}</td>`;
+            }
+            
+            // Time
+            row += `<td>${Math.round(detail.time)} min</td>`;
+            
+            // Load change
+            let loadChangeClass = '';
+            if (detail.load_change > 0) {
+                loadChangeClass = 'text-success';
+            } else if (detail.load_change < 0) {
+                loadChangeClass = 'text-danger';
+            }
+            
+            row += `<td class="${loadChangeClass}">${detail.load_change > 0 ? '+' : ''}${Math.round(detail.load_change || 0)}</td>`;
+            
+            // Capacity percentage
+            const capacityClass = detail.capacity_percent > 90 ? 'text-danger' : 
+                                detail.capacity_percent > 70 ? 'text-warning' : 'text-success';
+            
+            row += `<td class="${capacityClass}">${Math.round(detail.capacity_percent || 0)}%</td>`;
+            
+            row += '</tr>';
+            detailsBody.append(row);
+        });
+    }
+    
+    // Average Median scenario
+    buildRouteDetailRows(stats.median_route_details, `avg-median-details-body-${shuttleId}`);
+    // Use median-specific once-per-shift details
+    buildOncePerShiftDetails(stats.median_once_per_shift_details, `once-per-shift-details-${shuttleId}`);
+    
+    // Peak Median scenario
+    buildRouteDetailRows(stats.peak_median_route_details, `peak-median-details-body-${shuttleId}`);
+    // Use peak median-specific once-per-shift details
+    buildOncePerShiftDetails(stats.peak_median_once_per_shift_details, `peak-median-once-per-shift-details-${shuttleId}`);
+    
+    // Average P90 scenario
+    buildRouteDetailRows(stats.p90_route_details, `avg-p90-details-body-${shuttleId}`);
+    // Use p90-specific once-per-shift details
+    buildOncePerShiftDetails(stats.p90_once_per_shift_details, `avg-p90-once-per-shift-details-${shuttleId}`);
+    
+    // Peak P90 scenario
+    buildRouteDetailRows(stats.peak_p90_route_details, `peak-p90-details-body-${shuttleId}`);
+    // Use peak p90-specific once-per-shift details 
+    buildOncePerShiftDetails(stats.peak_p90_once_per_shift_details, `peak-p90-once-per-shift-details-${shuttleId}`);
+}
+
+    // Add the handler for scenario selection buttons
+    $(document).on('click', 'label[data-scenario]', function() {
+        const scenario = $(this).data('scenario');
+        const shuttleId = $(this).data('shuttle-id');
+        
+        // Hide all scenario data first
+        $(`.scenario-data[class*="-data-${shuttleId}"]`).hide();
+        
+        // Show the selected scenario data
+        $(`.${scenario}-data-${shuttleId}`).show();
+    });
+
+    // Toggle route details
+    $(document).on('click', '.toggle-route-details', function() {
+        const shuttleId = $(this).data('shuttle-id');
+        const detailsDiv = $(`#route-details-${shuttleId}`);
+        
+        if (detailsDiv.is(':visible')) {
+            detailsDiv.slideUp();
+            $(this).html('<i class="bi bi-info-circle"></i> Zobrazit detaily trasy');
+        } else {
+            detailsDiv.slideDown();
+            $(this).html('<i class="bi bi-x-circle"></i> Skrýt detaily trasy');
+        }
+    });
+
+    // Event handlers for the filter controls
+    $('#source-filter, #dest-filter').change(filterCelky);
+    $('#search-filter').on('input', filterCelky);
+    
+    // Function to filter celky list
+    function filterCelky() {
+        const sourceFilter = $('#source-filter').val();
+        const destFilter = $('#dest-filter').val();
+        const searchFilter = $('#search-filter').val().toLowerCase();
+        
+        $('#availableCelkyList .celky-item').each(function() {
+            const item = $(this);
+            const source = item.data('source').toString();
+            const dest = item.data('dest').toString();
+            const name = item.data('name').toLowerCase();
+            
+            const matchesSource = !sourceFilter || source === sourceFilter;
+            const matchesDest = !destFilter || dest === destFilter;
+            const matchesSearch = !searchFilter || name.includes(searchFilter);
+            
+            // Also check if celky is already assigned
+            const celkyId = item.data('id');
+            const isAssigned = assignedCelkyIds.has(celkyId);
+            
+            if (matchesSource && matchesDest && matchesSearch && !isAssigned) {
+                item.show();
+            } else {
+                item.hide();
+            }
+        });
+    }
+    
+    // View celky data button
+    $('.view-celky-data-btn').click(function() {
+        const celkyId = $(this).data('id');
+        $('#celkyDataModal').modal('show');
+        
+        // Load celky details
+        $('#celkyDataContent').html(`
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Načítání...</span>
+                </div>
+                <p>Načítání dat...</p>
+            </div>
+        `);
+        
+        $.ajax({
+            url: `/data_module/celky/${celkyId}?format=html`,
+            type: 'GET',
+            success: function(response) {
+                $('#celkyDataContent').html(response);
+            },
+            error: function() {
+                $('#celkyDataContent').html(`
+                    <div class="alert alert-danger">
+                        <h6>Chyba při načítání dat</h6>
+                        <p>Nepodařilo se načíst detail celku. Zkuste to prosím později.</p>
+                    </div>
+                `);
+            }
+        });
+    });
+    
+    // Clear shuttle button
+    $('.clear-shuttle-btn').click(function() {
+        const shuttleId = $(this).data('shuttle-id');
+        if (confirm('Opravdu chcete odstranit všechny celky z tohoto shuttlu?')) {
+            // Get all assigned celky IDs from this shuttle
+            const scheduleContainer = $(`#shuttle-${shuttleId}-schedule`);
+            scheduleContainer.find('.shuttle-schedule-item').each(function() {
+                const celkyId = $(this).data('celky-id');
+                if (celkyId) {
+                    assignedCelkyIds.delete(celkyId);
+                }
+            });
+            
+            // Clear the schedule container
+            scheduleContainer.empty();
+            
+            // Update available celky list
+            updateAvailableCelkyList();
+            
+            // Update summary
+            updateShuttleSummary(shuttleId);
+            
+            // If active schedule exists, also clear in database
+            if (activeScheduleId) {
+                $.ajax({
+                    url: '{{ url_for("assignments.clear_shuttle_assignments") }}',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        shuttle_id: shuttleId,
+                        schedule_id: activeScheduleId
+                    }),
+                    success: function(response) {
+                        if (response.success) {
+                            console.log('Assignments cleared in database');
+                        } else {
+                            console.error('Error clearing assignments:', response.message);
+                        }
+                    }
+                });
+            }
+        }
+    });
+    
+    // Save shuttle schedule button
+    $('.save-shuttle-schedule-btn').click(function() {
+        const shuttleId = $(this).data('shuttle-id');
+        const scheduleContainer = $(`#shuttle-${shuttleId}-schedule`);
+        const items = scheduleContainer.find('.shuttle-schedule-item');
+        
+        if (!activeScheduleId) {
+            alert('Nemáte aktivní žádný jízdní řád. Aktivujte prosím jízdní řád před uložením.');
+            return;
+        }
+        
+        // Collect assignments
+        const celkyIds = [];
+        const routeOrderMap = {};
+        const startTimesMap = {};
+        
+        items.each(function(index) {
+            const celkyId = $(this).data('celky-id');
+            celkyIds.push(celkyId);
+            routeOrderMap[celkyId] = index + 1;
+            
+            const startTime = $(this).find('.planned-start-time').val();
+            if (startTime) {
+                startTimesMap[celkyId] = startTime;
+            }
+        });
+        
+        // Get statistics if available
+        const statistics = scheduleContainer.data('statistics') || {};
+        
+        // Show loading state
+        const btn = $(this);
+        const originalText = btn.html();
+        btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Ukládám...');
+        btn.prop('disabled', true);
+        
+        // Use the warning-aware save function
+        saveAssignmentsWithWarningCheck(
+            shuttleId,
+            activeScheduleId,
+            celkyIds,
+            routeOrderMap,
+            startTimesMap,
+            statistics
+        );
+        
+        // Reset button state after a short delay
+        setTimeout(function() {
+            btn.html(originalText);
+            btn.prop('disabled', false);
+        }, 2000);
+    });
+    
+    // Optimize schedule button
+    $('#optimizeScheduleBtn').click(function() {
+        if (confirm('Opravdu chcete vytvořit ze stávajících shuttlů jízdní řády?')) {
+            alert('Optimalizace bude implementována v další fázi vývoje.');
+        }
+    });
+    
+    // Initialize summaries and assigned celky
+    $('.shuttle-schedule').each(function() {
+        const shuttleId = $(this).data('shuttle-id');
+        updateShuttleSummary(shuttleId);
+    });
+    
+    // Initialize the set of assigned celky IDs
+    initializeAssignedCelkyIds();
+
+});
+</script>
+{% endblock %}

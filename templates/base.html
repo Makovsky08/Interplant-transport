@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Mezizávodová Doprava{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+    <style>
+        /* Use more horizontal space */
+        .container-fluid { 
+            width: 95%; 
+            margin: 0 auto;
+            padding-top: 20px;
+        }
+        /* Improved navbar styling */
+        .navbar {
+            margin-bottom: 5px;
+            padding: 0.5rem 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .navbar-brand {
+            font-weight: 700;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            margin-right: 1.5rem;
+        }
+        .nav-item {
+            margin-right: 0.25rem;
+        }
+        .nav-link {
+            padding: 0.6rem 1rem;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+        .nav-link:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        .nav-link.active {
+            background-color: rgba(255,255,255,0.2);
+            font-weight: 500;
+        }
+        .navbar-dark .navbar-nav .nav-link {
+            color: rgba(255,255,255,0.85);
+        }
+        .navbar-dark .navbar-nav .nav-link:hover {
+            color: rgba(255,255,255,1);
+        }
+        .dropdown-menu {
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: none;
+            margin-top: 0.5rem;
+        }
+        .dropdown-item.active {
+            font-weight: 500;
+        }
+        .badge {
+            font-weight: 500;
+            padding: 0.4rem 0.7rem;
+        }
+        /* Status indicators in navbar */
+        .navbar-text .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.8rem;
+        }
+        .navbar-text .badge i {
+            font-size: 1rem;
+        }
+        /* Button styling */
+        .btn-outline-light {
+            border-width: 2px;
+        }
+        {% block additional_styles %}
+        {% endblock %}
+    </style>
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Mezizávodová Doprava</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain" aria-controls="navbarMain" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'home' %}active{% endif %}" aria-current="page" href="/index">
+                            <i class="bi bi-house-door"></i> Domů
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'data_module' %}active{% endif %}" href="/data_module/">
+                            <i class="bi bi-database"></i> Analýza dat
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'config_module' %}active{% endif %}" href="/config_module/">
+                            <i class="bi bi-gear"></i> Konfigurace
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'config_module_planner' %}active{% endif %}" href="/config_module/planner">
+                            <i class="bi bi-gear"></i> Přiřazení celků k shuttlu
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active_page == 'rcmpsp' %}active{% endif %}" href="/rcmpsp/">
+                            <i class="bi bi-calendar3"></i> Tvorba jízdních řádů
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/rcmpsp/results_dash/">
+                            <i class="bi bi-bar-chart"></i> Výsledky
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if active_page and active_page.startswith('admin_') %}active{% endif %}" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-shield-lock"></i> Administrace
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                            <li><a class="dropdown-item {% if active_page == 'admin_settings' %}active{% endif %}" href="/admin/settings">
+                                <i class="bi bi-sliders"></i> Nastavení
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                        </ul>
+                    </li>
+                </ul>
+                
+                <!-- Schedule Alert in Navbar -->
+                {% if active_schedule_id is defined %}
+                    {% if active_schedule_id %}
+                    <div class="navbar-text me-3">
+                        <span class="badge bg-success">
+                            <i class="bi bi-check-circle"></i>
+                            Aktivní jízdní řád:
+                            {% for schedule in schedules %}
+                                {% if schedule.id == active_schedule_id %}
+                                    <strong>{{ schedule.name }}</strong>
+                                {% endif %}
+                            {% endfor %}
+                        </span>
+                    </div>
+                    <a href="{{ url_for('config_module.schedules') }}" class="btn btn-sm btn-outline-light">
+                        <i class="bi bi-pencil"></i> Změnit
+                    </a>
+                    {% else %}
+                    <div class="navbar-text me-3">
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            Žádný aktivní jízdní řád
+                        </span>
+                    </div>
+                    <a href="{{ url_for('config_module.schedules') }}" class="btn btn-sm btn-outline-light">
+                        <i class="bi bi-plus-circle"></i> Aktivovat
+                    </a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        {% block content %}{% endblock %}
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

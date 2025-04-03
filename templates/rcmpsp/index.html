@@ -1,0 +1,1002 @@
+{% extends "base.html" %}
+
+{% block title %}Optimalizace RCMPSP{% endblock %}
+
+{% block additional_styles %}
+.jumbotron {
+    background-color: #f8f9fa;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border-radius: 0.3rem;
+}
+.card {
+    margin-bottom: 20px;
+}
+.parameter-card {
+    background-color: #f8f9fa;
+    border-left: 5px solid #0d6efd;
+}
+.result-card {
+    border-left: 5px solid #198754;
+}
+.results-card {
+    border-left: 5px solid #0dcaf0;
+}
+.alert-info {
+    border-left: 5px solid #0dcaf0;
+}
+.step-badge {
+    font-size: 1.2rem;
+    margin-right: 10px;
+    background-color: #0d6efd;
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+.loading-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 5px;
+    text-align: center;
+}
+.result-item {
+    margin-bottom: 12px;
+    padding: 12px;
+    border-radius: 5px;
+    background-color: #f8f9fa;
+    border-left: 5px solid #6c757d;
+    transition: all 0.2s;
+}
+.result-item:hover {
+    border-left-color: #0d6efd;
+    background-color: #e9ecef;
+    cursor: pointer;
+}
+.result-item.active {
+    border-left-color: #198754;
+    background-color: #e8f4f8;
+}
+.result-item.has-violations {
+    border-left-color: #dc3545;
+}
+.badge-violations {
+    background-color: #dc3545;
+}
+.solution-good {
+    color: #198754;
+    font-weight: bold;
+}
+.solution-fair {
+    color: #fd7e14;
+    font-weight: bold;
+}
+.solution-poor {
+    color: #dc3545;
+    font-weight: bold;
+}
+.scenario-badge {
+    background-color: #6610f2;
+    color: white;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    display: inline-block;
+    margin-left: 0.5rem;
+}
+{% endblock %}
+
+{% block content %}
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Načítání...</span>
+        </div>
+        <p id="loadingMessage">Zpracování...</p>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Tvorba jízdních řádů</h1>
+        <div>
+            <a href="{{ url_for('config_module.index') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Zpět do konfigurace
+            </a>
+        </div>
+    </div>
+
+    <div class="jumbotron">
+        <h2 class="display-6">(RCMPSP) Problém plánování více projektů s omezením zdrojů</h2>
+        <p class="lead">Optimalizace jízdních řádů mezizávodové dopravy s ohledem na omezení zdrojů v každém zařízení.</p>
+        <hr class="my-4">
+        <p>Tento modul používá genetické algoritmy k vytvoření optimalizovaných jízdních řádů pro mezizávodovou dopravu.</p>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card parameter-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><span class="step-badge">1</span> Konfigurace</h5>
+                </div>
+                <div class="card-body">
+                    <form id="configForm">
+                        <div class="mb-3">
+                            <label for="scheduleSelect" class="form-label">Jízdní řád</label>
+                            <select class="form-select" id="scheduleSelect" required>
+                                <option value="">-- Vyberte jízdní řád --</option>
+                                {% if active_schedule_id %}
+                                <option value="{{ active_schedule_id }}" selected>Aktivní jízdní řád</option>
+                                {% endif %}
+                                <!-- Zde mohou být přidány další jízdní řády -->
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="scenarioSelect" class="form-label">Scénář</label>
+                            <select class="form-select" id="scenarioSelect">
+                                <option value="median" selected>Medián (Průměr)</option>
+                                <option value="peak_median">Medián (Špička)</option>
+                                <option value="p90">P90 (Průměr)</option>
+                                <option value="peak_p90">P90 (Špička)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="timeHorizon" class="form-label">Časový horizont (minuty)</label>
+                            <input type="number" class="form-control" id="timeHorizon" value="480" min="60" max="1440">
+                            <div class="form-text">Výchozí je 8 hodin (480 minut)</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="timeLimit" class="form-label">Časový limit řešení (sekundy)</label>
+                            <input type="number" class="form-control" id="timeLimit" value="60" min="10" max="300">
+                            <div class="form-text">Maximální čas pro hledání řešení</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="startTime" class="form-label">Čas zahájení</label>
+                            <input type="time" class="form-control" id="startTime" value="06:00">
+                        </div>
+                        
+                        <button type="button" id="loadDataBtn" class="btn btn-primary">
+                            <i class="bi bi-database-fill"></i> Načíst data
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card parameter-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><span class="step-badge">2</span> Spustit optimalizaci</h5>
+                </div>
+                <div class="card-body">
+                    <p>Po načtení dat použijte tato tlačítka k vygenerování a optimalizaci jízdních řádů:</p>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="button" id="generateActivitiesBtn" class="btn btn-primary" disabled>
+                            <i class="bi bi-list-task"></i> Vygenerovat aktivity
+                        </button>
+                        
+                        <button type="button" id="solveModelBtn" class="btn btn-success" disabled>
+                            <i class="bi bi-lightning-charge"></i> Vyřešit RCMPSP model
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card results-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><span class="step-badge" style="background-color: #0dcaf0">3</span> Existující výsledky</h5>
+                    <button type="button" id="refreshResultsBtn" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-arrow-clockwise"></i> Obnovit
+                    </button>
+                </div>
+                <div class="card-body">
+                    <!-- Div šablon přesunut mimo resultsList -->
+                    <div id="templates" style="display: none;">
+                        <!-- Šablona pro jednotlivé položky výsledků -->
+                        <div id="result-item-template" class="result-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <h6 class="mb-0 result-date"><!-- Sem bude vloženo datum --></h6>
+                                <span class="scenario-badge"><!-- Sem bude vložen scénář --></span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <span class="result-quality"><!-- Sem bude vložena kvalita --></span>
+                                <div class="result-stats">
+                                    <!-- Sem budou vloženy statistiky -->
+                                </div>
+                            </div>
+                            <div class="mt-2 d-flex justify-content-end">
+                                <a href="#" class="btn btn-sm btn-outline-success me-1 export-link">
+                                    <i class="bi bi-file-excel"></i> Export
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger delete-result-btn">
+                                    <i class="bi bi-trash"></i> Smazat
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="resultsListPlaceholder" class="alert alert-info">
+                        <p><i class="bi bi-info-circle"></i> Pro tento jízdní řád nebyly nalezeny žádné výsledky.</p>
+                    </div>
+                    
+                    <div id="resultsList" style="display: none;">
+                        <!-- Výsledky budou dynamicky vypsány zde -->
+                    </div>
+                    
+                    <div class="mt-3">
+                        <button type="button" id="viewDashboardBtn" class="btn btn-info w-100" disabled>
+                            <i class="bi bi-bar-chart-steps"></i> Zobrazit diagram pro vybraný výsledek
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card result-card">
+                <div class="card-header">
+                    <h5 class="mb-0">Výsledky optimalizace</h5>
+                </div>
+                <div class="card-body">
+                    <div id="resultsPlaceholder" class="alert alert-info">
+                        <p><i class="bi bi-info-circle"></i> Vyberte výsledek nebo spusťte optimalizaci pro zobrazení výsledků zde.</p>
+                    </div>
+                    
+                    <div id="resultsContent" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Shrnutí</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <table class="table table-sm">
+                                            <tr>
+                                                <td>Kvalita řešení:</td>
+                                                <td id="solutionQuality" class="ms-2">-</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Naplánované spoje:</td>
+                                                <td id="shuttlesScheduled">-</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Celkové frekvence:</td>
+                                                <td id="totalFrequencies">-</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Porušení zdrojů:</td>
+                                                <td id="resourceViolations">-</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Celkový prostoj:</td>
+                                                <td id="totalIdleTime">-</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Využití zdrojů</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="utilizationChart" style="height: 200px;">
+                                            <!-- Zde bude vykreslen graf -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">Porušení</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="noViolations" class="alert alert-success">
+                                            <i class="bi bi-check-circle"></i> Nebyla zjištěna žádná porušení zdrojů!
+                                        </div>
+                                        
+                                        <div id="violationsTable" style="display: none;">
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-striped">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Zařízení</th>
+                                                            <th>Čas</th>
+                                                            <th>Zdroj</th>
+                                                            <th>Kapacita</th>
+                                                            <th>Využití</th>
+                                                            <th>Zapojené spoje</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="violationsTableBody">
+                                                        <!-- Porušení budou vypsána zde -->
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Elements
+        const loadDataBtn = document.getElementById('loadDataBtn');
+        const generateActivitiesBtn = document.getElementById('generateActivitiesBtn');
+        const solveModelBtn = document.getElementById('solveModelBtn');
+        const viewDashboardBtn = document.getElementById('viewDashboardBtn');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const resultsPlaceholder = document.getElementById('resultsPlaceholder');
+        const resultsContent = document.getElementById('resultsContent');
+        const resultsListPlaceholder = document.getElementById('resultsListPlaceholder');
+        const resultsList = document.getElementById('resultsList');
+        const refreshResultsBtn = document.getElementById('refreshResultsBtn');
+        
+        // Form elements
+        const scheduleSelect = document.getElementById('scheduleSelect');
+        const scenarioSelect = document.getElementById('scenarioSelect');
+        const timeHorizon = document.getElementById('timeHorizon');
+        const timeLimit = document.getElementById('timeLimit');
+        const startTime = document.getElementById('startTime');
+        
+        // Result elements
+        const solutionQuality = document.getElementById('solutionQuality');
+        const shuttlesScheduled = document.getElementById('shuttlesScheduled');
+        const totalFrequencies = document.getElementById('totalFrequencies');
+        const resourceViolations = document.getElementById('resourceViolations');
+        const totalIdleTime = document.getElementById('totalIdleTime');
+        const noViolations = document.getElementById('noViolations');
+        const violationsTable = document.getElementById('violationsTable');
+        const violationsTableBody = document.getElementById('violationsTableBody');
+        
+        // Current active result
+        let currentResultId = null;
+        
+        // Show loading overlay
+        function showLoading(message) {
+            loadingMessage.textContent = message;
+            loadingOverlay.style.display = 'flex';
+        }
+        
+        // Hide loading overlay
+        function hideLoading() {
+            loadingOverlay.style.display = 'none';
+        }
+        
+        // Format date for display
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleString();
+            } catch (e) {
+                return dateString;
+            }
+        }
+        
+        // Load results for the current schedule
+        function loadResultsList() {
+            const scheduleId = scheduleSelect.value;
+            if (!scheduleId) {
+                resultsListPlaceholder.style.display = 'block';
+                resultsList.style.display = 'none';
+                return;
+            }
+            
+            showLoading('Loading results...');
+            
+            fetch(`/rcmpsp/check_results/${scheduleId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Results data:", data); // Debug logging
+                    
+                    if (data.has_results && data.results && data.results.length > 0) {
+                        resultsListPlaceholder.style.display = 'none';
+                        resultsList.style.display = 'block';
+                        
+                        // Clear results list
+                        resultsList.innerHTML = '';
+                        
+                        // Get the template
+                        const template = document.getElementById('result-item-template');
+                        
+                        // Create and append items from template
+                        data.results.forEach(result => {
+                            try {
+                                const hasViolations = result.total_violations > 0;
+                                const qualityClass = result.solution_quality === 'Good' ? 
+                                    'solution-good' : (result.solution_quality === 'Fair' ? 
+                                    'solution-fair' : 'solution-poor');
+                                
+                                // Clone the template
+                                const item = template.cloneNode(true);
+                                
+                                // Set ID and class
+                                item.id = `result-${result.id}`;
+                                if (hasViolations) {
+                                    item.classList.add('has-violations');
+                                }
+                                
+                                // Set data attributes
+                                item.dataset.id = result.id;
+                                item.dataset.scenario = result.scenario;
+                                
+                                // Fill in content
+                                item.querySelector('.result-date').textContent = formatDate(result.run_date);
+                                item.querySelector('.scenario-badge').textContent = result.scenario;
+                                
+                                const qualityElement = item.querySelector('.result-quality');
+                                qualityElement.textContent = result.solution_quality || 'Unknown';
+                                qualityElement.className = `result-quality ${qualityClass}`;
+                                
+                                // Add stats
+                                const statsContainer = item.querySelector('.result-stats');
+                                statsContainer.innerHTML = `
+                                    <span class="badge bg-primary">${result.total_frequencies} Freq</span>
+                                    ${hasViolations ? 
+                                        `<span class="badge badge-violations ms-1">${result.total_violations} Violations</span>` : 
+                                        '<span class="badge bg-success ms-1">No Violations</span>'}
+                                `;
+                                
+                                // Set export link
+                                item.querySelector('.export-link').href = `/rcmpsp/export_result/${result.id}`;
+                                
+                                // Set delete button data
+                                item.querySelector('.delete-result-btn').dataset.id = result.id;
+                                
+                                // Add click event listener
+                                item.addEventListener('click', function(e) {
+                                    // Ignore clicks on buttons
+                                    if (e.target.closest('.delete-result-btn') || e.target.closest('.export-link')) {
+                                        return;
+                                    }
+                                    
+                                    // Mark this item as active
+                                    document.querySelectorAll('.result-item').forEach(el => {
+                                        el.classList.remove('active');
+                                    });
+                                    this.classList.add('active');
+                                    
+                                    // Load the selected result
+                                    loadSelectedResult(result.id);
+                                    
+                                    // Update scenario dropdown if it exists
+                                    if (result.scenario) {
+                                        scenarioSelect.value = result.scenario;
+                                    }
+                                });
+                                
+                                resultsList.appendChild(item);
+                            } catch (err) {
+                                console.error("Error creating result item:", err, result);
+                            }
+                        });
+                        
+                        // Select the first result by default
+                        if (data.results.length > 0) {
+                            const firstItem = resultsList.querySelector('.result-item');
+                            if (firstItem) {
+                                firstItem.click();
+                            }
+                        }
+                        
+                        viewDashboardBtn.disabled = false;
+                    } else {
+                        resultsListPlaceholder.style.display = 'block';
+                        resultsList.style.display = 'none';
+                        viewDashboardBtn.disabled = true;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading results:', error);
+                    resultsListPlaceholder.style.display = 'block';
+                    resultsList.style.display = 'none';
+                })
+                .finally(() => {
+                    hideLoading();
+                });
+        }
+        
+        // Load a selected result
+        function loadSelectedResult(resultId) {
+            showLoading('Loading result details...');
+            currentResultId = resultId;
+            
+            fetch(`/rcmpsp/get_result/${resultId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Result details:", data); // Debug logging
+                    
+                    if (data.success) {
+                        try {
+                            // Show results section
+                            resultsPlaceholder.style.display = 'none';
+                            resultsContent.style.display = 'block';
+                            
+                            // Display results with more error checking
+                            if (data.summary) {
+                                displayResults(data.summary);
+                            } else {
+                                console.warn("No summary data in response");
+                                // Set default values if summary is missing
+                                solutionQuality.textContent = '-';
+                                solutionQuality.className = '';
+                                shuttlesScheduled.textContent = '0';
+                                totalFrequencies.textContent = '0';
+                                resourceViolations.textContent = '0';
+                                totalIdleTime.textContent = '0 minutes';
+                            }
+                            
+                            // Handle violations section with more error checking
+                            if (data.vis_data && data.vis_data.violations) {
+                                displayViolations(data.vis_data.violations);
+                            } else {
+                                console.warn("No visualization data in response");
+                                // Show no violations by default
+                                noViolations.style.display = 'block';
+                                violationsTable.style.display = 'none';
+                            }
+                            
+                            // Preload data for dash app
+                            preloadDashData(resultId);
+                        } catch (err) {
+                            console.error("Error displaying results:", err);
+                            alert(`Error displaying results: ${err.message}`);
+                        }
+                    } else {
+                        console.error("Error in response:", data.error || "Unknown error");
+                        alert('Error loading result: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading result:', error);
+                    alert('Error loading result details: ' + error.message);
+                })
+                .finally(() => {
+                    hideLoading();
+                });
+        }
+        
+        // Function to preload data for dash app
+        function preloadDashData(resultId) {
+            fetch(`/rcmpsp/preload_dash_data/${resultId}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Dash data preloaded:', data.success);
+                })
+                .catch(error => {
+                    console.error('Error preloading dash data:', error);
+                });
+        }
+        
+        // Event listener for schedule selection
+        scheduleSelect.addEventListener('change', loadResultsList);
+        
+        // Event listener for refresh button
+        refreshResultsBtn.addEventListener('click', loadResultsList);
+        
+        // Load data button
+        loadDataBtn.addEventListener('click', function() {
+            const scheduleId = scheduleSelect.value;
+            const scenario = scenarioSelect.value;
+            
+            if (!scheduleId) {
+                alert('Please select a schedule');
+                return;
+            }
+            
+            showLoading('Loading data...');
+            
+            // Call the API to load data
+            fetch('/rcmpsp/load_data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    schedule_id: scheduleId,
+                    scenario: scenario
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    generateActivitiesBtn.disabled = false;
+                    alert(`Data loaded successfully: ${data.shuttles_count} shuttles, ${data.plants_count} plants, ${data.stats_count} route statistics`);
+                } else {
+                    alert(`Error: ${data.error || 'Failed to load data'}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error loading data');
+            })
+            .finally(() => {
+                hideLoading();
+            });
+        });
+        
+        // Generate activities button
+        generateActivitiesBtn.addEventListener('click', function() {
+            showLoading('Generating activities...');
+            
+            // Call the API to generate activities
+            fetch('/rcmpsp/generate_activities', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    solveModelBtn.disabled = false;
+                    alert('Activities generated successfully');
+                } else {
+                    alert(`Error: ${data.error || 'Failed to generate activities'}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error generating activities');
+            })
+            .finally(() => {
+                hideLoading();
+            });
+        });
+        
+        // Solve model button
+        solveModelBtn.addEventListener('click', function() {
+            const scheduleId = scheduleSelect.value;
+            const scenario = scenarioSelect.value;
+            showLoading('Solving RCMPSP model (this may take a minute)...');
+            
+            // Call the API to solve the model
+            fetch('/rcmpsp/solve', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    time_horizon: parseInt(timeHorizon.value),
+                    time_limit: parseInt(timeLimit.value),
+                    schedule_id: scheduleId,
+                    scenario: scenario
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    viewDashboardBtn.disabled = false;
+                    displayResults(data.summary);
+                    
+                    if (data.vis_data && data.vis_data.violations) {
+                        displayViolations(data.vis_data.violations);
+                    }
+                    
+                    // Store current result ID
+                    if (data.result_id) {
+                        currentResultId = data.result_id;
+                        
+                        // Preload data for dash app
+                        preloadDashData(data.result_id);
+                    }
+                    
+                    // Refresh results list
+                    loadResultsList();
+                    
+                    alert('RCMPSP model solved successfully');
+                } else {
+                    alert(`Error: ${data.error || data.message || 'Failed to solve model'}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error solving model');
+            })
+            .finally(() => {
+                hideLoading();
+            });
+        });
+
+        // View dashboard button
+        viewDashboardBtn.addEventListener('click', function() {
+            window.location.href = '/rcmpsp/results_dash';
+        });
+        
+        // Display results
+        function displayResults(summary) {
+            try {
+                // Show results section
+                resultsPlaceholder.style.display = 'none';
+                resultsContent.style.display = 'block';
+                
+                // Update summary data with checks for each field
+                if (summary.solution_quality) {
+                    const qualityClass = summary.solution_quality === 'Good' ? 
+                        'solution-good' : (summary.solution_quality === 'Fair' ? 
+                        'solution-fair' : 'solution-poor');
+                    solutionQuality.textContent = summary.solution_quality;
+                    solutionQuality.className = qualityClass;
+                } else {
+                    solutionQuality.textContent = '-';
+                    solutionQuality.className = '';
+                }
+                
+                // Use safe access for all fields with defaults
+                shuttlesScheduled.textContent = summary.shuttles_scheduled || '0';
+                totalFrequencies.textContent = summary.total_frequencies || '0';
+                resourceViolations.textContent = summary.total_violations || '0';
+                totalIdleTime.textContent = `${Math.round(summary.total_idle_time || 0)} minutes`;
+                
+                console.log("Results displayed successfully");
+            } catch (error) {
+                console.error("Error in displayResults:", error);
+                // Set default values on error
+                solutionQuality.textContent = '-';
+                solutionQuality.className = '';
+                shuttlesScheduled.textContent = '0';
+                totalFrequencies.textContent = '0';
+                resourceViolations.textContent = '0';
+                totalIdleTime.textContent = '0 minutes';
+            }
+        }
+        
+        function displayViolations(violations) {
+            try {
+                // Check if there are any violations
+                const hasRampViolations = violations && violations.ramp && violations.ramp > 0;
+                const hasWorkerViolations = violations && violations.worker && violations.worker > 0;
+                
+                if (!hasRampViolations && !hasWorkerViolations) {
+                    noViolations.style.display = 'block';
+                    violationsTable.style.display = 'none';
+                    console.log("No violations found");
+                    return;
+                }
+                
+                noViolations.style.display = 'none';
+                violationsTable.style.display = 'block';
+                
+                // Clear previous violations
+                violationsTableBody.innerHTML = '';
+                
+                // Add violations with checks
+                const allViolations = [];
+                
+                if (violations.details && Array.isArray(violations.details.ramp)) {
+                    for (const violation of violations.details.ramp) {
+                        allViolations.push({
+                            ...violation,
+                            resource_type: 'Ramp'
+                        });
+                    }
+                }
+                
+                if (violations.details && Array.isArray(violations.details.worker)) {
+                    for (const violation of violations.details.worker) {
+                        allViolations.push({
+                            ...violation,
+                            resource_type: 'Worker'
+                        });
+                    }
+                }
+                
+                if (allViolations.length === 0) {
+                    // No actual violation details, show the "no violations" message
+                    noViolations.style.display = 'block';
+                    violationsTable.style.display = 'none';
+                    console.log("No violation details found");
+                    return;
+                }
+                
+                // Sort violations by plant and time
+                allViolations.sort((a, b) => {
+                    // Sort by plant first
+                    if (a.plant_name < b.plant_name) return -1;
+                    if (a.plant_name > b.plant_name) return 1;
+                    
+                    // Then by start time (if available)
+                    if (a.start_time && b.start_time) {
+                        return a.start_time.localeCompare(b.start_time);
+                    }
+                    return 0;
+                });
+                
+                // Display all violations - merge similar ones
+                const mergedViolations = {};
+                
+                // Group violations by plant, time and resource type
+                for (const violation of allViolations) {
+                    // Create a safe key using only available properties
+                    const plantId = violation.plant_id || 'unknown';
+                    const startTime = violation.start_time || 'unknown';
+                    const endTime = violation.end_time || 'unknown';
+                    const resourceType = violation.resource_type || 'Unknown';
+                    
+                    const key = `${plantId}-${startTime}-${endTime}-${resourceType}`;
+                    
+                    if (!mergedViolations[key]) {
+                        mergedViolations[key] = {
+                            plant_name: violation.plant_name || 'Unknown',
+                            plant_id: plantId,
+                            start_time: startTime,
+                            end_time: endTime,
+                            resource_type: resourceType,
+                            capacity: violation.capacity !== undefined ? violation.capacity : 'Unknown',
+                            total_usage: violation.total_usage !== undefined ? violation.total_usage : 'Unknown',
+                            shuttles: new Set(),
+                            shuttle_names: new Set()
+                        };
+                    }
+                    
+                    // Add shuttle to the merged violation
+                    if (violation.shuttle_id) {
+                        mergedViolations[key].shuttles.add(violation.shuttle_id);
+                    }
+                    
+                    // Add shuttle names if available
+                    if (violation.shuttle_name) {
+                        mergedViolations[key].shuttle_names.add(violation.shuttle_name);
+                    } else if (violation.shuttle_id) {
+                        mergedViolations[key].shuttle_names.add(`Shuttle ${violation.shuttle_id}`);
+                    }
+                }
+                
+                // Convert merged violations to array
+                const displayViolations = Object.values(mergedViolations);
+                
+                // Sort by plant and time
+                displayViolations.sort((a, b) => {
+                    if (a.plant_name < b.plant_name) return -1;
+                    if (a.plant_name > b.plant_name) return 1;
+                    
+                    if (a.start_time && b.start_time) {
+                        return a.start_time.localeCompare(b.start_time);
+                    }
+                    return 0;
+                });
+                
+                // Display merged violations
+                for (const violation of displayViolations) {
+                    const row = document.createElement('tr');
+                    
+                    // Format shuttles list for display
+                    let shuttlesText = '';
+                    if (violation.shuttle_names && violation.shuttle_names.size > 0) {
+                        shuttlesText = Array.from(violation.shuttle_names).join(', ');
+                    } else if (violation.shuttles && violation.shuttles.size > 0) {
+                        shuttlesText = Array.from(violation.shuttles).map(id => `Shuttle ${id}`).join(', ');
+                    } else {
+                        shuttlesText = 'Unknown';
+                    }
+                    
+                    row.innerHTML = `
+                        <td>${violation.plant_name}</td>
+                        <td>${violation.start_time}${violation.end_time !== 'unknown' ? ' - ' + violation.end_time : ''}</td>
+                        <td>${violation.resource_type}</td>
+                        <td>${violation.capacity}</td>
+                        <td>${violation.total_usage}</td>
+                        <td>${shuttlesText}</td>
+                    `;
+                    
+                    violationsTableBody.appendChild(row);
+                }
+                
+                // If no violations were added to the table, show "No violations"
+                if (violationsTableBody.children.length === 0) {
+                    noViolations.style.display = 'block';
+                    violationsTable.style.display = 'none';
+                }
+                
+                console.log("Violations displayed successfully");
+            } catch (error) {
+                console.error("Error in displayViolations:", error);
+                // On error, just show "No violations"
+                noViolations.style.display = 'block';
+                violationsTable.style.display = 'none';
+            }
+        }
+        
+        // Check for existing results when page loads
+        if (scheduleSelect.value) {
+            loadResultsList();
+        }
+
+
+        // Event delegation for delete result buttons
+        document.body.addEventListener('click', function(e) {
+            if (e.target.closest('.delete-result-btn')) {
+                const button = e.target.closest('.delete-result-btn');
+                const resultId = button.dataset.id;
+                
+                if (confirm('Are you sure you want to delete this result? This action cannot be undone.')) {
+                    showLoading('Deleting result...');
+                    
+                    fetch(`/rcmpsp/delete_result/${resultId}`, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Remove the result item from the list
+                            const resultItem = button.closest('.result-item');
+                            if (resultItem) {
+                                resultItem.remove();
+                            }
+                            
+                            // If no more results, show placeholder
+                            if (!resultsList.querySelector('.result-item')) {
+                                resultsListPlaceholder.style.display = 'block';
+                                resultsList.style.display = 'none';
+                                viewDashboardBtn.disabled = true;
+                            }
+                            
+                            // Clear result details if this was the active result
+                            if (resultItem && resultItem.classList.contains('active')) {
+                                resultsPlaceholder.style.display = 'block';
+                                resultsContent.style.display = 'none';
+                            }
+                            
+                            alert('Result deleted successfully');
+                        } else {
+                            alert(`Error: ${data.message || 'Failed to delete result'}`);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error deleting result');
+                    })
+                    .finally(() => {
+                        hideLoading();
+                    });
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

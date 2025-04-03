@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+
+{% block title %}Mezizávodová Doprava - Průvodce Systémem{% endblock %}
+
+{% block additional_styles %}
+.jumbotron {
+    background-color: #f8f9fa;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border-radius: 0.3rem;
+}
+.module-card {
+    margin-bottom: 2rem;
+    border-left: 5px solid #0d6efd;
+    transition: all 0.2s ease;
+}
+.module-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+.module-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: #0d6efd;
+}
+.workflow-step {
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 0.3rem;
+    border-left: 5px solid #0d6efd;
+    position: relative;
+}
+.workflow-step::after {
+    content: "";
+    position: absolute;
+    bottom: -1.5rem;
+    left: 2rem;
+    width: 2px;
+    height: 1.5rem;
+    background-color: #0d6efd;
+}
+.workflow-step:last-child::after {
+    display: none;
+}
+.step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    margin-right: 0.75rem;
+    background-color: #0d6efd;
+    color: white;
+    border-radius: 50%;
+    font-weight: bold;
+}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="jumbotron">
+        <h1 class="display-4">Průvodce systémem Mezizávodová Doprava</h1>
+        <p class="lead">Komplexní řešení pro optimalizaci plánování mezizávodové přepravy pomocí shuttle vozidel</p>
+        <hr class="my-4">
+        <p>Tento průvodce vás seznámí s jednotlivými moduly aplikace a celkovým procesem vytváření optimalizovaných jízdních řádů.</p>
+    </div>
+
+    <h2 class="mb-4">Moduly systému</h2>
+
+    <div class="row">
+        <!-- Analýza dat -->
+        <div class="col-md-6 mb-4">
+            <div class="card module-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="bi bi-database module-icon me-3"></i>
+                        <h3 class="card-title mb-0">Analýza dat</h3>
+                    </div>
+                    <p class="card-text">Modul pro analýzu a zpracování dat ze systémů WATRA a SAP, který vytváří celky pro plánování jízdních řádů na základě historických dat.</p>
+                    <div class="mt-3">
+                        <h5>Hlavní funkce:</h5>
+                        <ul>
+                            <li>Analýza dat z databáze WATRA s využitím různých typů SAP strategií pro správné přiřazení záznamů</li>
+                            <li>Zpracování historických dat přeprav pro statistickou analýzu (mediány, percentily, průměry)</li>
+                            <li>Vytvoření celků na základě zdroje, cíle a typu přepravy (WATRA kódu)</li>
+                            <li>Výpočet statistik pro každou kombinaci závod-závod v jednotlivých hodinách</li>
+                            <li>Identifikace a zpracování období s maximálními pohyby pro optimální plánování</li>
+                        </ul>
+                    </div>
+                    <a href="/data_module/" class="btn btn-primary mt-3">Přejít do modulu</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Konfigurace -->
+        <div class="col-md-6 mb-4">
+            <div class="card module-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="bi bi-gear module-icon me-3"></i>
+                        <h3 class="card-title mb-0">Konfigurace</h3>
+                    </div>
+                    <p class="card-text">Modul pro konfiguraci základních parametrů systému, včetně závodů, shuttlů, času přejezdů a jízdních řádů.</p>
+                    <div class="mt-3">
+                        <h5>Hlavní funkce:</h5>
+                        <ul>
+                            <li>Správa závodů včetně jejich kapacit ramp a pracovníků pro nakládku/vykládku</li>
+                            <li>Konfigurace shuttlů, jejich kapacit, typů (naves/preprah) a délky směn</li>
+                            <li>Definice časů přejezdů mezi jednotlivými závody</li>
+                            <li>Správa jízdních řádů - tvorba, kopírování, aktivace a deaktivace</li>
+                            <li>Nastavení výměny návěsů (preprah) včetně lokace a času potřebného na výměnu</li>
+                        </ul>
+                    </div>
+                    <a href="/config_module/" class="btn btn-primary mt-3">Přejít do modulu</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Přiřazení celků k shuttlu -->
+        <div class="col-md-6 mb-4">
+            <div class="card module-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="bi bi-gear module-icon me-3"></i>
+                        <h3 class="card-title mb-0">Přiřazení celků k shuttlu</h3>
+                    </div>
+                    <p class="card-text">Modul pro ruční přiřazování celků ke konkrétním shuttlům, vytváření optimálních tras a výpočet statistik pomocí simulačního modelu.</p>
+                    <div class="mt-3">
+                        <h5>Hlavní funkce:</h5>
+                        <ul>
+                            <li>Interaktivní přiřazování celků k jednotlivým shuttlům pomocí drag-and-drop</li>
+                            <li>Automatický výpočet optimální trasy pro minimalizaci prázdných jízd</li>
+                            <li>Dynamické přepočítávání statistik tras při přidání nebo odebrání celku</li>
+                            <li>Zobrazení detailních informací o trase shuttlu včetně časů, kapacitních využití a počtu frekvencí</li>
+                            <li>Podpora různých scénářů: medián, špička, P90 (90. percentil)</li>
+                            <li>Speciální zpracování shuttlů typu "preprah" s podporou přeprah operací</li>
+                        </ul>
+                    </div>
+                    <a href="/config_module/planner" class="btn btn-primary mt-3">Přejít do modulu</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tvorba jízdních řádů -->
+        <div class="col-md-6 mb-4">
+            <div class="card module-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="bi bi-calendar3 module-icon me-3"></i>
+                        <h3 class="card-title mb-0">Tvorba jízdních řádů</h3>
+                    </div>
+                    <p class="card-text">Pokročilý modul pro automatizovanou optimalizaci jízdních řádů pomocí genetických algoritmů s respektováním kapacitních omezení závodů.</p>
+                    <div class="mt-3">
+                        <h5>Hlavní funkce:</h5>
+                        <ul>
+                            <li>Implementace algoritmu RCMPSP (Resource-Constrained Multi-Project Scheduling Problem)</li>
+                            <li>Automatické rozvrhování přestávek pro optimální využití zdrojů</li>
+                            <li>Detekce a minimalizace konfliktů v kapacitách ramp a pracovníků závodů</li>
+                            <li>Optimalizace časování aktivit pro jednotlivé shuttly</li>
+                            <li>Podpora různých scénářů plánování (medián, špička, P90)</li>
+                            <li>Identifikace kritických kapacitních problémů pomocí detekce porušení omezení</li>
+                        </ul>
+                    </div>
+                    <a href="/rcmpsp/" class="btn btn-primary mt-3">Přejít do modulu</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Výsledky -->
+        <div class="col-md-6 mb-4">
+            <div class="card module-card h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="bi bi-bar-chart module-icon me-3"></i>
+                        <h3 class="card-title mb-0">Výsledky</h3>
+                    </div>
+                    <p class="card-text">Modul pro vizualizaci a analýzu výsledků optimalizace jízdních řádů pomocí interaktivních Ganttových diagramů.</p>
+                    <div class="mt-3">
+                        <h5>Hlavní funkce:</h5>
+                        <ul>
+                            <li>Interaktivní Ganttův diagram znázorňující operace všech shuttlů v čase</li>
+                            <li>Vizualizace využití ramp a pracovníků v jednotlivých závodech</li>
+                            <li>Barevné rozlišení typů operací (nakládka, vykládka, přeprah, přejezd, přestávka)</li>
+                            <li>Zvýraznění konfliktů v kapacitních omezeních závodů</li>
+                            <li>Možnost filtrování podle shuttlů, závodů, typů operací nebo časového rozmezí</li>
+                            <li>Export optimalizovaných jízdních řádů do formátu Excel pro praktické využití</li>
+                        </ul>
+                    </div>
+                    <a href="/rcmpsp/results_dash/" class="btn btn-primary mt-3">Přejít do modulu</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="mb-4">Pracovní postup vytváření jízdních řádů</h2>
+
+    <div class="workflow-steps">
+        <!-- Krok 1 -->
+        <div class="workflow-step">
+            <h3><span class="step-number">1</span> Vytvoření nového jízdního řádu</h3>
+            <p>Prvním krokem je vytvoření nového jízdního řádu v modulu Konfigurace. Jízdní řád funguje jako kontejner pro veškerá data a přiřazení, která vytvoříte v dalších krocích.</p>
+            <ul>
+                <li>Přejděte do sekce Konfigurace → Jízdní řády</li>
+                <li>Klikněte na tlačítko "Vytvořit nový"</li>
+                <li>Zadejte název, popis a platnost jízdního řádu</li>
+                <li>Po vytvoření jej aktivujte pomocí tlačítka "Aktivovat"</li>
+            </ul>
+            <div class="text-end">
+                <a href="/config_module/schedules" class="btn btn-outline-primary">Přejít na Jízdní řády</a>
+            </div>
+        </div>
+
+        <!-- Krok 2 -->
+        <div class="workflow-step">
+            <h3><span class="step-number">2</span> Analýza SAP a WATRA dat</h3>
+            <p>Po vytvoření jízdního řádu je třeba provést analýzu historických dat z WATRA a SAP systémů, která vytvoří celky pro plánování.</p>
+            <ul>
+                <li>Přejděte do modulu Analýza dat</li>
+                <li>Vyberte počet měsíců zpět pro analýzu (typicky 6 měsíců)</li>
+                <li>Spusťte analýzu, která zpracuje data podle nakonfigurovaných WATRA kódů</li>
+                <li>Systém vytvoří celky s vypočtenými statistikami mediánů, percentilů a průměrů pro každou hodinu</li>
+                <li>Celky jsou automaticky přiřazeny k aktivnímu jízdnímu řádu</li>
+            </ul>
+            <div class="text-end">
+                <a href="/data_module/" class="btn btn-outline-primary">Přejít na Analýzu dat</a>
+            </div>
+        </div>
+
+        <!-- Krok 3 -->
+        <div class="workflow-step">
+            <h3><span class="step-number">3</span> Konfigurace závodů, shuttlů a časů přejezdů</h3>
+            <p>Pro správné plánování jízdních řádů je nutné nakonfigurovat základní parametry systému.</p>
+            <ul>
+                <li>Nakonfigurujte závody včetně jejich kapacit ramp a pracovníků</li>
+                <li>Vytvořte a nastavte shuttly - jejich kapacitu, typ (naves/preprah), délku směny</li>
+                <li>Pro shuttly typu "preprah" nastavte navíc lokaci a čas přeprah operací</li>
+                <li>Definujte časy přejezdů mezi jednotlivými závody</li>
+                <li>Ujistěte se, že všechny potřebné parametry jsou správně nastaveny</li>
+            </ul>
+            <div class="text-end">
+                <a href="/config_module/" class="btn btn-outline-primary">Přejít na Konfiguraci</a>
+            </div>
+        </div>
+
+        <!-- Krok 4 -->
+        <div class="workflow-step">
+            <h3><span class="step-number">4</span> Přiřazení celků k shuttlům</h3>
+            <p>V tomto kroku manuálně přiřadíte vytvořené celky k jednotlivým shuttlům a vytvoříte základní trasy.</p>
+            <ul>
+                <li>Přejděte do modulu Přiřazení celků k shuttlu</li>
+                <li>Přetáhněte celky ze seznamu dostupných celků k požadovaným shuttlům</li>
+                <li>Systém automaticky vypočítá optimální trasu pro každý shuttle</li>
+                <li>Prohlédněte si detaily tras, včetně frekvencí, využití kapacity a celkových časů</li>
+                <li>Experimentujte s různými kombinacemi přiřazení pro optimální rozložení práce</li>
+                <li>Mezi jednotlivými shuttly přepínejte pomocí záložek v horní části</li>
+            </ul>
+            <div class="text-end">
+                <a href="/config_module/planner" class="btn btn-outline-primary">Přejít na Přiřazení celků</a>
+            </div>
+        </div>
+
+        <!-- Krok 5 -->
+        <div class="workflow-step">
+            <h3><span class="step-number">5</span> Tvorba optimalizovaných jízdních řádů</h3>
+            <p>Po dokončení základních přiřazení celků k shuttlům můžete spustit pokročilou optimalizaci jízdních řádů.</p>
+            <ul>
+                <li>Přejděte do modulu Tvorba jízdních řádů</li>
+                <li>Vyberte aktivní jízdní řád a scénář pro optimalizaci</li>
+                <li>Nastavte časový horizont a časový limit pro optimalizaci</li>
+                <li>Klikněte na "Load Data" pro načtení dat z předchozích kroků</li>
+                <li>Spusťte "Generate Activities" pro vytvoření aktivit z přiřazených celků</li>
+                <li>Klikněte na "Solve RCMPSP Model" pro spuštění genetického algoritmu optimalizace</li>
+                <li>Systém automaticky optimalizuje přestávky a časování aktivit pro minimalizaci konfliktů</li>
+                <li>Výsledek optimalizace se zobrazí včetně detekovaných porušení kapacitních omezení</li>
+            </ul>
+            <div class="text-end">
+                <a href="/rcmpsp/" class="btn btn-outline-primary">Přejít na Tvorbu jízdních řádů</a>
+            </div>
+        </div>
+
+        <!-- Krok 6 -->
+        <div class="workflow-step">
+            <h3><span class="step-number">6</span> Výsledky a export jízdních řádů</h3>
+            <p>Posledním krokem je analýza výsledků optimalizace a export finálních jízdních řádů.</p>
+            <ul>
+                <li>Přejděte do modulu Výsledky</li>
+                <li>Prohlédněte si interaktivní Ganttův diagram s přehlednou vizualizací všech operací</li>
+                <li>Identifikujte a analyzujte případné konflikty v kapacitách závodů</li>
+                <li>Pomocí filtrů omezte zobrazení na konkrétní shuttly, závody nebo typy operací</li>
+                <li>Exportujte finální jízdní řády do formátu Excel pro praktické využití</li>
+                <li>V případě potřeby se vraťte do předchozích kroků a upravte přiřazení celků</li>
+            </ul>
+            <div class="text-end">
+                <a href="/rcmpsp/results_dash/" class="btn btn-outline-primary">Přejít na Výsledky</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="jumbotron mt-4">
+        <h2>Technické pozadí systému</h2>
+        <p>Systém Mezizávodová Doprava používá několik pokročilých technologií a algoritmů:</p>
+        
+        <h4 class="mt-4">Genetické algoritmy pro optimalizaci jízdních řádů (RCMPSP)</h4>
+        <p>Modul Tvorba jízdních řádů implementuje algoritmus pro řešení Resource-Constrained Multi-Project Scheduling Problem (RCMPSP). Tento algoritmus používá genetické programování pro hledání optimálního rozvrhu s minimálními konflikty kapacit.</p>
+        <ul>
+            <li>Populace potenciálních řešení je iterativně vylepšována pomocí operací selekce, křížení a mutace</li>
+            <li>Fitness funkce hodnotí každé řešení na základě počtu porušení kapacitních omezení, nevyužitého času a dalších parametrů</li>
+            <li>Speciální operátory mutace cílí na problematické oblasti (vysoká vytíženost ramp, časové konflikty)</li>
+            <li>Algoritmus běží s více ostrovy (sub-populacemi) pro zajištění diverzity řešení</li>
+        </ul>
+
+        <h4 class="mt-4">Simulační model pro optimální routing shuttlů</h4>
+        <p>Pro vytvoření optimálních tras shuttlů systém používá simulační model, který minimalizuje prázdné jízdy a maximalizuje využití kapacity vozidel.</p>
+
+        <h4 class="mt-4">Interaktivní Ganttův diagram</h4>
+        <p>Vizualizace jízdních řádů je realizována pomocí interaktivního Ganttova diagramu implementovaného v knihovně Plotly.js s integrací React/Dash.</p>
+    </div>
+</div>
+{% endblock %}

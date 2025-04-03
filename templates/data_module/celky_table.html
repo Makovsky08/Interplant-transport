@@ -1,0 +1,73 @@
+<!-- templates/celky_table.html -->
+<table id="celky-table" class="table table-striped table-bordered">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Název</th>
+      <th>Zdrojový závod</th>
+      <th>Cílový závod</th>
+      <th>Nejhorsi median</th>
+      <th>Nejhorsi 90percentil</th>
+      <th>Typ transportu</th>
+      <th>WATRA kód</th>
+      <th>SAP typ</th>
+      <th>Poslední analýza</th>
+      <th>Počet měsíců</th>
+      <th>Přiřazeno</th>
+      <th>Akce</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for celky in celky_data %}
+    <tr data-id="{{ celky.id }}">
+      <td>{{ celky.id }}</td>
+      <td>{{ celky.name }}</td>
+      <td>{{ celky.source_plant }}</td>
+      <td>{{ celky.dest_plant }}</td>
+      <td>
+        {% set median_ns = namespace(value=0, hour='-') %}
+        {% for stat in celky.hourly_stats %}
+          {% if stat.median_moves is defined %}
+            {% set median_value = stat.median_moves|int %}
+            {% if median_value > median_ns.value %}
+              {% set median_ns.value = median_value %}
+              {% set median_ns.hour = stat.hour %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+        {{ median_ns.value }} ({{ median_ns.hour }}:00)
+      </td>
+
+      <td>
+        {% set p90_ns = namespace(value=0, hour='-') %}
+        {% for stat in celky.hourly_stats %}
+          {% if stat.percentile_90 is defined %}
+            {% set p90_value = stat.percentile_90|int %}
+            {% if p90_value > p90_ns.value %}
+              {% set p90_ns.value = p90_value %}
+              {% set p90_ns.hour = stat.hour %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+        {{ p90_ns.value }} ({{ p90_ns.hour }}:00)
+      </td>
+      <td>{{ celky.transport_type }}</td>
+      <td>{{ celky.watra_kod }}</td>
+      <td>{{ celky.sap_type }}</td>
+      <td>{{ celky.last_analysis_date }}</td>
+      <td>{{ celky.months_analyzed }}</td>
+      <td>
+        {% if celky.is_assigned %}
+          <span class="badge bg-success"><i class="bi bi-check-circle"></i> Ano</span>
+        {% else %}
+          <span class="badge bg-secondary"><i class="bi bi-x-circle"></i> Ne</span>
+        {% endif %}
+      </td>
+      <td>
+        <a href="/data_module/celky/{{ celky.id }}" class="btn btn-primary btn-sm">Detail</a>
+      </td>
+    </tr>
+
+    {% endfor %}
+  </tbody>
+</table>

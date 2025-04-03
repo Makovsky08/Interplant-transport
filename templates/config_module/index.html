@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Konfigurační Modul{% endblock %}
+
+{% block additional_styles %}
+.config-card {
+    height: 100%;
+    transition: transform 0.3s ease;
+}
+.config-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+.config-icon {
+    font-size: 3rem;
+    color: #0d6efd;
+    margin-bottom: 1rem;
+}
+.nav-tabs {
+    margin-bottom: 1rem;
+}
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-2">Konfigurační Modul</h1>
+    
+    <!-- First row - 4 cards -->
+    <div class="row mb-2">
+        <div class="col-md-3 mb-2">
+            <div class="card config-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-building config-icon"></i>
+                    <h5 class="card-title">Závody</h5>
+                    <p class="card-text">Správa závodů a jejich kapacit</p>
+                    <a href="{{ url_for('config_module.plants') }}" class="btn btn-primary">Spravovat</a>
+                </div>
+                <div class="card-footer text-muted text-center">
+                    {{ plants|length }} závodů
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-2">
+            <div class="card config-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-truck config-icon"></i>
+                    <h5 class="card-title">Shuttly</h5>
+                    <p class="card-text">Správa shuttle vozidel a jejich kapacit</p>
+                    <a href="{{ url_for('config_module.shuttles') }}" class="btn btn-primary">Spravovat</a>
+                </div>
+                <div class="card-footer text-muted text-center">
+                    {{ shuttles|length }} shuttle vozidel
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-2">
+            <div class="card config-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-clock-history config-icon"></i>
+                    <h5 class="card-title">Časy Přejezdů</h5>
+                    <p class="card-text">Nastavení časů přejezdů mezi závody</p>
+                    <a href="{{ url_for('config_module.travel_times') }}" class="btn btn-primary">Spravovat</a>
+                </div>
+                <div class="card-footer text-muted text-center">
+                    {{ travel_times|length }} nastavených časů
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-2">
+            <div class="card config-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-calendar-week config-icon"></i>
+                    <h5 class="card-title">Jízdní Řády</h5>
+                    <p class="card-text">Správa jízdních řádů a plánů přepravy</p>
+                    <a href="{{ url_for('config_module.schedules') }}" class="btn btn-primary">Spravovat</a>
+                </div>
+                <div class="card-footer text-muted text-center">
+                    {{ schedules|length }} jízdních řádů
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Second row - 1 card (3 columns) + 1 card (9 columns) -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-4">
+            <div class="card config-card">
+                <div class="card-body text-center">
+                    <i class="bi bi-calendar-week config-icon"></i>
+                    <h5 class="card-title">Tvorba jízdních řádů</h5>
+                    <p class="card-text">Optimalizujte jízdní řády mezizávodové dopravy při respektování omezení zdrojů v jednotlivých závodech.</p>
+                    <a href="{{ url_for('rcmpsp.index') }}" class="btn btn-primary">Spravovat</a>
+                </div>
+                <div class="card-footer text-muted text-center">
+                    Resource-Constrained Multi-Project Scheduling Problem
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-9 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Plánovač Jízdního Řádu</h5>
+                    <a href="{{ url_for('config_module.planner') }}" class="btn btn-success">Otevřít plánovač</a>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p>
+                                <strong>Aktivní jízdní řád:</strong> 
+                                {% if active_schedule_id %}
+                                    {% for schedule in schedules %}
+                                        {% if schedule.id == active_schedule_id %}
+                                            {{ schedule.name }}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">Žádný aktivní jízdní řád</span>
+                                {% endif %}
+                            </p>
+                            <p>Plánovač umožňuje:</p>
+                            <ul>
+                                <li>Přiřazení celků k shuttlům</li>
+                                <li>Nastavení pořadí celků v rámci trasy shuttlu</li>
+                                <li>Plánování časů odjezdů a příjezdů</li>
+                                <li>Optimalizaci tras pro minimalizaci prázdných jízd</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6>Statistika</h6>
+                                    <p><strong>Počet celků:</strong> {{ celky_data|length }}</p>
+                                    <p><strong>Počet aktivních shuttlů:</strong> {{ shuttles|selectattr('active', 'equalto', 1)|list|length }}</p>
+                                    <p><strong>Počet závodů:</strong> {{ plants|length }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

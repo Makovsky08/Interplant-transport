@@ -1,0 +1,413 @@
+{% extends "base.html" %}
+
+{% block title %}Správa Jízdních Řádů{% endblock %}
+
+{% block additional_styles %}
+.card-header .btn {
+    margin-left: 10px;
+}
+.table th, .table td {
+    vertical-align: middle;
+}
+.active-badge {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+}
+.template-badge {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+}
+.date-column {
+    white-space: nowrap;
+}
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>Správa Jízdních Řádů</h1>
+        <a href="{{ url_for('config_module.index') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Zpět na konfiguraci
+        </a>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Seznam jízdních řádů</h5>
+                    <div>
+                        <button type="button" class="btn btn-success" id="openPlannerBtn">
+                            <i class="bi bi-diagram-3"></i> Otevřít plánovač
+                        </button>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addScheduleModal">
+                            <i class="bi bi-plus-circle"></i> Vytvořit nový
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table id="schedules-table" class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Název</th>
+                                    <th>Popis</th>
+                                    <th>Platný od</th>
+                                    <th>Platný do</th>
+                                    <th>Vytvořen</th>
+                                    <th>Stav</th>
+                                    <th>Typ</th>
+                                    <th>Akce</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for schedule in schedules %}
+                                <tr>
+                                    <td>{{ schedule.id }}</td>
+                                    <td>{{ schedule.name }}</td>
+                                    <td>{{ schedule.description }}</td>
+                                    <td class="date-column">{{ schedule.valid_from | default('', true) }}</td>
+                                    <td class="date-column">{{ schedule.valid_to | default('', true) }}</td>
+                                    <td class="date-column">{{ schedule.created_at.split('T')[0] if schedule.created_at else '' }}</td>
+                                    <td>
+                                        {% if schedule.is_active %}
+                                            <span class="badge bg-success active-badge">Aktivní</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary active-badge">Neaktivní</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if schedule.is_template %}
+                                            <span class="badge bg-info template-badge">Šablona</span>
+                                        {% else %}
+                                            <span class="badge bg-primary template-badge">Jízdní řád</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <button class="btn btn-sm btn-primary edit-schedule" data-id="{{ schedule.id }}" data-schedule="{{ schedule|tojson }}">
+                                                <i class="bi bi-pencil"></i> Upravit
+                                            </button>
+                                            <button class="btn btn-sm btn-info copy-schedule" data-id="{{ schedule.id }}" data-name="{{ schedule.name }}">
+                                                <i class="bi bi-files"></i> Kopírovat
+                                            </button>
+                                            {% if not schedule.is_active %}
+                                            <button class="btn btn-sm btn-success activate-schedule" data-id="{{ schedule.id }}" data-name="{{ schedule.name }}">
+                                                <i class="bi bi-check-circle"></i> Aktivovat
+                                            </button>
+                                            <button class="btn btn-sm btn-danger delete-schedule" data-id="{{ schedule.id }}" data-name="{{ schedule.name }}">
+                                                <i class="bi bi-trash"></i> Smazat
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Schedule Modal -->
+<div class="modal fade" id="addScheduleModal" tabindex="-1" aria-labelledby="addScheduleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addScheduleModalLabel">Vytvořit nový jízdní řád</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addScheduleForm" action="{{ url_for('config_module.add_schedule') }}" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Název jízdního řádu</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Popis</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="valid_from" class="form-label">Platný od</label>
+                                <input type="date" class="form-control" id="valid_from" name="valid_from">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="valid_to" class="form-label">Platný do</label>
+                                <input type="date" class="form-control" id="valid_to" name="valid_to">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="is_template" name="is_template">
+                        <label class="form-check-label" for="is_template">
+                            Vytvořit jako šablonu
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                    <button type="submit" class="btn btn-primary">Vytvořit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Schedule Modal -->
+<div class="modal fade" id="editScheduleModal" tabindex="-1" aria-labelledby="editScheduleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editScheduleModalLabel">Upravit jízdní řád</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editScheduleForm" action="" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_name" class="form-label">Název jízdního řádu</label>
+                        <input type="text" class="form-control" id="edit_name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_description" class="form-label">Popis</label>
+                        <textarea class="form-control" id="edit_description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_valid_from" class="form-label">Platný od</label>
+                                <input type="date" class="form-control" id="edit_valid_from" name="valid_from">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_valid_to" class="form-label">Platný do</label>
+                                <input type="date" class="form-control" id="edit_valid_to" name="valid_to">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="edit_is_template" name="is_template">
+                        <label class="form-check-label" for="edit_is_template">
+                            Šablona
+                        </label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="edit_is_active" name="is_active">
+                        <label class="form-check-label" for="edit_is_active">
+                            Aktivní
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                    <button type="submit" class="btn btn-primary">Uložit změny</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Copy Schedule Modal -->
+<div class="modal fade" id="copyScheduleModal" tabindex="-1" aria-labelledby="copyScheduleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="copyScheduleModalLabel">Kopírovat jízdní řád</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="copyScheduleForm" action="" method="post">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="new_name" class="form-label">Název nového jízdního řádu</label>
+                        <input type="text" class="form-control" id="new_name" name="new_name" required>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="as_template" name="as_template">
+                        <label class="form-check-label" for="as_template">
+                            Vytvořit jako šablonu
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                    <button type="submit" class="btn btn-primary">Kopírovat</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmDeleteModalLabel">Potvrdit smazání</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Opravdu chcete smazat jízdní řád <span id="scheduleNameToDelete"></span>?</p>
+                <p class="text-danger">Tato akce je nevratná a smaže všechna přiřazení celků k shuttlům v tomto jízdním řádu.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Smazat</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Activate Modal -->
+<div class="modal fade" id="confirmActivateModal" tabindex="-1" aria-labelledby="confirmActivateModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmActivateModalLabel">Potvrdit aktivaci</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Opravdu chcete aktivovat jízdní řád <span id="scheduleNameToActivate"></span>?</p>
+                <p>Tím se deaktivuje aktuálně aktivní jízdní řád.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zrušit</button>
+                <button type="button" class="btn btn-success" id="confirmActivateBtn">Aktivovat</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Initialize DataTable
+        $('#schedules-table').DataTable({
+            language: {
+                url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/cs.json'
+            },
+            "order": [[ 6, "desc" ], [ 0, "desc" ]]  // Sort by active status, then by ID
+        });
+        
+        // Open planner button
+        $('#openPlannerBtn').click(function() {
+            window.location.href = '{{ url_for("config_module.planner") }}';
+        });
+        
+        // Edit schedule button
+        $('.edit-schedule').click(function() {
+            const schedule = $(this).data('schedule');
+            
+            $('#edit_name').val(schedule.name);
+            $('#edit_description').val(schedule.description);
+            
+            // Parse dates if they exist
+            if (schedule.valid_from) {
+                $('#edit_valid_from').val(schedule.valid_from.split('T')[0]);
+            } else {
+                $('#edit_valid_from').val('');
+            }
+            
+            if (schedule.valid_to) {
+                $('#edit_valid_to').val(schedule.valid_to.split('T')[0]);
+            } else {
+                $('#edit_valid_to').val('');
+            }
+            
+            $('#edit_is_template').prop('checked', schedule.is_template == 1);
+            $('#edit_is_active').prop('checked', schedule.is_active == 1);
+            
+            $('#editScheduleForm').attr('action', '{{ url_for("config_module.update_schedule", id=0) }}'.replace('0', schedule.id));
+            
+            $('#editScheduleModal').modal('show');
+        });
+        
+        // Copy schedule button
+        $('.copy-schedule').click(function() {
+            const id = $(this).data('id');
+            const name = $(this).data('name');
+            
+            $('#new_name').val(`Kopie - ${name}`);
+            
+            $('#copyScheduleForm').attr('action', '{{ url_for("config_module.copy_schedule", id=0) }}'.replace('0', id));
+            
+            $('#copyScheduleModal').modal('show');
+        });
+        
+        // Delete schedule button
+        $('.delete-schedule').click(function() {
+            const id = $(this).data('id');
+            const name = $(this).data('name');
+            
+            $('#scheduleNameToDelete').text(name);
+            
+            $('#confirmDeleteBtn').off('click').on('click', function() {
+                window.location.href = '{{ url_for("config_module.delete_schedule", id=0) }}'.replace('0', id);
+            });
+            
+            $('#confirmDeleteModal').modal('show');
+        });
+        
+        // Activate schedule button
+        $('.activate-schedule').click(function() {
+            const id = $(this).data('id');
+            const name = $(this).data('name');
+        
+            $('#scheduleNameToActivate').text(name);
+        
+            $('#confirmActivateBtn').off('click').on('click', function() {
+                // Send POST request to activate the schedule
+                $.ajax({
+                    url: '{{ url_for("config_module.activate_schedule", id=0) }}'.replace('0', id),
+                    type: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            // Show success message
+                            $('#messageModal .modal-body').text(response.message);
+                            $('#messageModal').modal('show');
+                            
+                            // Optional: Refresh the page or update UI
+                            setTimeout(function() {
+                                location.reload();
+                            }, 2000);
+                        } else {
+                            // Show error message
+                            $('#messageModal .modal-body').text(response.message);
+                            $('#messageModal').modal('show');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        // Handle any AJAX errors
+                        $('#messageModal .modal-body').text('An error occurred while activating the schedule.');
+                        $('#messageModal').modal('show');
+                    }
+                });
+
+                // Close the confirm modal
+                $('#confirmActivateModal').modal('hide');
+            });
+        
+            $('#confirmActivateModal').modal('show');
+        });
+    });
+</script>
+{% endblock %}

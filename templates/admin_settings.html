@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Nastavení aplikace{% endblock %}
+
+{% block content %}
+<h1>Nastavení aplikace</h1>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Databázová nastavení</h5>
+    </div>
+    <div class="card-body">
+        <form id="dbSettingsForm">
+            <div class="mb-3">
+                <label for="watra_db_conn" class="form-label">WATRA databázové spojení:</label>
+                <input type="text" class="form-control" id="watra_db_conn" name="watra_db_conn" value="{{ watra_db_conn }}" readonly>
+                <div class="form-text">Toto nastavení lze změnit pouze v konfiguračním souboru.</div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="ico_db_conn" class="form-label">ICO databázové spojení:</label>
+                <input type="text" class="form-control" id="ico_db_conn" name="ico_db_conn" value="{{ ico_db_conn }}" readonly>
+                <div class="form-text">Toto nastavení lze změnit pouze v konfiguračním souboru.</div>
+            </div>
+            <div class="mb-3">
+                <label for="ico_db_conn" class="form-label">Oracle databázové spojení:</label>
+                <input type="text" class="form-control" id="oracle_db_conn" name="oracle_db_conn" value="{{ oracle_db_conn }}" readonly>
+                <div class="form-text">Toto nastavení lze změnit pouze v konfiguračním souboru.</div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Systémové nastavení</h5>
+    </div>
+    <div class="card-body">
+        <div class="mb-3">
+            <label for="app_version" class="form-label">Verze aplikace:</label>
+            <input type="text" class="form-control" id="app_version" value="1.0.0" readonly>
+        </div>
+        
+        <div class="mb-3">
+            <label for="python_version" class="form-label">Verze Python:</label>
+            <input type="text" class="form-control" id="python_version" value="{{ python_version }}" readonly>
+        </div>
+        
+        <div class="mb-3">
+            <label for="flask_version" class="form-label">Verze Flask:</label>
+            <input type="text" class="form-control" id="flask_version" value="{{ flask_version }}" readonly>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Údržba</h5>
+    </div>
+    <div class="card-body">
+        <button type="button" class="btn btn-danger me-2" id="clearCacheBtn">Vyčistit cache</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle clear cache button
+        document.getElementById('clearCacheBtn').addEventListener('click', function() {
+            if (confirm('Opravdu chcete vyčistit cache? Tato akce může způsobit dočasné zpomalení aplikace.')) {
+                fetch('/admin/clear_cache', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Cache byla úspěšně vyčištěna.');
+                    } else {
+                        alert('Chyba: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    alert('Chyba při komunikaci se serverem.');
+                    console.error('Error:', error);
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

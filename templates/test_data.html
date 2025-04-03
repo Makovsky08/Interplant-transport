@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Testovací Data{% endblock %}
+
+{% block additional_styles %}
+.table-responsive {
+    overflow-x: auto;
+}
+{% endblock %}
+
+{% block content %}
+<h1>Analýza transportů WATRA</h1>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Konfigurace zásilek pro analýzu</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            {{ config_table|safe }}
+        </div>
+        <div class="mt-3">
+            <p><strong>Poznámka:</strong> Zobrazeny jsou záznamy s <code>pouziti_jizdni_rad = 'ano'</code></p>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5>Parametry analýzy</h5>
+    </div>
+    <div class="card-body">
+        <form action="/analyze" method="post">
+            <div class="mb-3">
+                <label for="months_back" class="form-label">Počet měsíců zpět pro analýzu:</label>
+                <input type="number" class="form-control" id="months_back" name="months_back" value="6" min="1" max="36">
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Spustit analýzu</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    
+    $(document).ready(function() {
+        if ($.fn.DataTable) {
+            $('.table').DataTable({
+                pageLength: 25,
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/cs.json'
+                },
+                responsive: true
+            });
+        }
+    });
+</script>
+{% endblock %}
