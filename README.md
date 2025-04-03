@@ -9,14 +9,41 @@ Před instalací se ujistěte, že máte nainstalované následující komponent
 - Docker (verze 20.10.0 nebo novější)
 - Docker Compose (verze 2.0.0 nebo novější)
 
-## Postup instalace
+## Postup instalace z flash disku
 
 ### 1. Stažení zdrojového kódu
 
 - Flashka obsahuje zároveň i databázi s testovacími daty.
-- Stáhněte zdrojový kód z flashky a v terminálu běžte do složky projektu.
+- ve Flash disku:
 
 ```bash
+cd Mezizavodova_doprava/production/
+```
+
+### 2. Sestavení Docker kontejnerů a spuštění aplikace
+
+Použijte Docker Compose pro sestavení všech kontejnerů:
+
+```bash
+docker-compose up -d --build
+```
+
+Všechny kontejnery by měly být ve stavu "Up".
+
+### 3. Přístup k aplikaci
+
+Po úspěšném spuštění bude aplikace dostupná na:
+
+```
+http://localhost:8080/index
+```
+
+## Postup instalace z git (bez databáze)
+
+### 1. Stažení zdrojových souborů z github
+
+```bash
+git clone -b public-branch https://github.com/Makovsky08/Interplant-transport.git Mezizavodova_doprava
 cd Mezizavodova_doprava/production/
 ```
 
@@ -50,21 +77,9 @@ Aplikace se skládá z následujících komponent:
 
 ```
 /
-├── dev/
-│   ├── docker-compose.yml
-│   ├── Dockerfile.loader
-│   ├── Dockerfile.watra_loader
-│   ├── scripts/
-│   │   ├── loader_entrypoint.sh
-│   │   └── watra_loader_entrypoint.sh
-│   └── config/
-│       ├── sap_loader_crontab
-│       └── watra_loader_crontab
 ├── production/
 │   └── docker-compose.yml
 ├── application/
-├── data/
-│   └── SchedLine.db
 ├── models/
 ├── static/
 ├── templates/
