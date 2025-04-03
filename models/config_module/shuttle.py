@@ -67,11 +67,11 @@ class Shuttle(Model):
         if count == 0 or force_reset:
             # Sample data
             sample_data = [
-                (1, 'Shuttle 1', 40, 'naves', 8, 30, 240, 15, 4, 0, None, 1),
-                (2, 'Shuttle 2', 40, 'naves', 8, 30, 240, 15, 4, 0, None, 1),
-                (3, 'Shuttle 3', 40, 'naves', 12, 60, 240, 15, 4, 0, None, 1),
-                (4, 'Shuttle 4', 40, 'preprah', 8, 30, 240, 15, 4, 0, None, 1),
-                (5, 'Shuttle 5', 35, 'preprah', 12, 60, 240, 15, 4, 0, None, 1)
+                (1, 'Shuttle 1', 40, 'naves', 8, 30, 240, 15, 4, 0, None, 1, '#FFFFFF'),
+                (2, 'Shuttle 2', 40, 'naves', 8, 30, 240, 15, 4, 0, None, 1, '#FFFFFF'),
+                (3, 'Shuttle 3', 40, 'naves', 12, 60, 240, 15, 4, 0, None, 1, '#FFFFFF'),
+                (4, 'Shuttle 4', 40, 'preprah', 8, 30, 240, 15, 4, 0, None, 1, '#FFFFFF'),
+                (5, 'Shuttle 5', 35, 'preprah', 12, 60, 240, 15, 4, 0, None, 1, '#FFFFFF')
             ]
             
             cursor.executemany(
