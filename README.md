@@ -105,4 +105,10 @@ Pro přímý přístup k SQLite databázi:
 docker exec -it sqlite_db sqlite3 /data/SchedLine.db
 ```
 
+### Přístup k aplikaci
+
+Pro přístup k exisující instanci aplikace na veřejné ip adrese:
+
+- [http://51.21.180.93/index](http://51.21.180.93/index)
+
 
